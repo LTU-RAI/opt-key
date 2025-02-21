@@ -15,7 +15,7 @@ This repository will provide the code implementation of the proposed keyframe sa
 >> (Best Paper Award at IROS 2024 [Standing the Test of Time Workshop: Retrospective and Future of World Representations for Lifelong Robotics](https://montrealrobotics.ca/test-of-time-workshop/papers/))
 
 >  **A Minimal Subset Approach for Efficient and Scalable Loop Closure**
->> (Submitted to ICRA 2025)
+>> 
 
 ### Corresponding Author:
 Contact at niksta@ltu.se
