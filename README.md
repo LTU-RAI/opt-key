@@ -14,8 +14,8 @@ This repository will provide the code implementation of the proposed keyframe sa
 > **_Does Sample Space Matter?_ Preliminary Results on Keyframe Sampling Optimization for LiDAR-based Place Recognition**
 >> (Best Paper Award at IROS 2024 [Standing the Test of Time Workshop: Retrospective and Future of World Representations for Lifelong Robotics](https://montrealrobotics.ca/test-of-time-workshop/papers/))
 
->  **A Minimal Subset Approach for Efficient and Scalable Loop Closure**
->> 
+>  **Balancing Accuracy and Efficiency for Large-Scale SLAM: A Minimal Subset Approach for Scalable Loop Closures**
+>> (Submitted, available at [arXiv](https://arxiv.org/abs/2501.01791))
 
 ### Corresponding Author:
 Contact at niksta@ltu.se
