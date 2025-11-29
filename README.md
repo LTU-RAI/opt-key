@@ -31,11 +31,11 @@ If you found this work useful, please cite the following publication (to appear 
 @article{stathoulopoulos2025msa,
   author={Stathoulopoulos, Nikolaos and Kanellakis, Christoforos and Nikolakopoulos, George},
   journal={IEEE Robotics and Automation Letters}, 
-  title={{A Minimal Subset Approach for Informed Keyframe Sampling in Large-Scale SLAM}}, 
-  year={2025},
-  volume={},
-  number={},
-  pages={},
+  title={A Minimal Subset Approach for Informed Keyframe Sampling in Large-Scale SLAM}, 
+  year={2026},
+  volume={11},
+  number={1},
+  pages={738-745},
   doi={10.1109/LRA.2025.3636035}
 }
 ```
