@@ -5,6 +5,8 @@
 
 [![arXiv](https://img.shields.io/badge/Arxiv-2501.01791-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2501.01791)
 [![DOI:10.1109/LRA.2025.3623045](https://img.shields.io/badge/IEEE-10.1109/LRA.2025.3636035-00629B.svg)](https://doi.org/10.1109/LRA.2025.3636035)
+  <a href="https://www.youtube.com/watch?v=70CcaRCL-7g"><img src="https://badges.aleen42.com/src/youtube.svg" alt="YouTube" /></a>
+
 ![Python](https://img.shields.io/badge/Python-3670A0?logo=python&logoColor=ffdd54)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
