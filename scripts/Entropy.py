@@ -6,6 +6,8 @@ import numpy as np
 from tqdm import tqdm
 from typing import List
 from scipy import stats
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from optkey_utils.Keyframe import Keyframe, Keyframes
 
 

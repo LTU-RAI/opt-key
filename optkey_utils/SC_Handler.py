@@ -8,7 +8,8 @@
     - Add the SC_Handler to the main pipeline
 """
 
-import os, cv2, time
+import os, cv2, time, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np 
 from typing import Tuple, List

@@ -3,10 +3,10 @@
         redundancy minimization and information preservation.
 """
 
-import itertools, sys, time
+import itertools, sys, time, os
 import numpy as np
 from typing import List, Tuple
-sys.path.append('.')
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from optkey_utils.Keyframe import Keyframe, Keyframes
 
 class RMIP_Online:

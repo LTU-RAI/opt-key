@@ -2,7 +2,8 @@
     This file contains the OverlapTransformerHandler class, which is used to handle the OverlapTransformer.
 """
 
-import os, cv2, tqdm
+import os, cv2, tqdm, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import numpy as np
 from typing import Tuple
 from concurrent.futures import ThreadPoolExecutor
