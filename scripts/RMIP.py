@@ -304,9 +304,6 @@ class RMIP_Online:
             
             self.delta_min = self.min_mult * self.global_avg_distance if self.global_avg_distance > 0.01 else 0.01
             self.delta_max = self.max_mult * self.global_avg_distance if self.global_avg_distance < 5.00 else 5.00
-            # self.delta_max = 3.0 * self.global_avg_distance #if self.global_avg_distance < 5.00 else 5.00
-            # self.delta_max = 2.0 * self.global_avg_distance #if self.global_avg_distance < 0.5 else 0.5
-            # if self.delta_max < 2.00: self.delta_max = 2.00
             
             # print(f'Current avg distance: {np.round(avg_dist,3)}')
             # print(f'Global average distance: {np.round(self.global_avg_distance,3)}')
