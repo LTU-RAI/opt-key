@@ -9,7 +9,7 @@ kitti_sequences: ['05', '06']
 descriptor: 'ot' # 'ot' or 'sc'
 ## Read descriptors from file or generate them -> bool
 from_file: False
-## Path to weights file -> str
+## Path to weights file if using learning-based descriptor (e.g. 'ot') -> str
 weights_path: '/home/niksta/python_projects/opt-key/optkey_utils/descriptors/OverlapTransformer/config/weights/pretrained_overlap_transformer.pth.tar'
 ## Path to save results
 save_path: /home/niksta/python_projects/opt-key/results
