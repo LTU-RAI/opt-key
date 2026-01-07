@@ -1,4 +1,5 @@
 """
+    This script contains the Entropy and EntropyOnline classes used to sample keyframes based on entropy thresholds.
 """
 
 import numpy as np

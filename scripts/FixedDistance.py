@@ -1,4 +1,5 @@
 """
+    This script contains the FixedDistance class used to sample keyframes based on a fixed distance threshold.
 """
 
 import numpy as np
