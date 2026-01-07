@@ -15,7 +15,7 @@
 
 </div>
 
-<p align=center> <img src="/ral25_pipeline.png" width="75%" height="75%"/> </p>
+<p align=center> <img src="/figures/ral25_pipeline.png" width="75%" height="75%"/> </p>
 
 <h2>💡 Introduction</h2>
 
