@@ -5,7 +5,7 @@
 import numpy as np
 from tqdm import tqdm
 from typing import List
-from utils.Keyframe import Keyframe, Keyframes
+from optkey_utils.Keyframe import Keyframe, Keyframes
 
 class FixedDistanceOnline:
     def __init__(self, dist_threshold:float):
