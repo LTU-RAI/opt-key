@@ -213,20 +213,38 @@ class EvaluateOnline:
 
     def main(self):
         if DATASET_NAME in ['KITTI', 'SemanticKitti']:
-            ## Load the KITTI/SemanticKITTI dataset
-            poses, scans, _ = self.dataset_handler.load_kitti(sequence=self.sequence)
+            ## Prepare KITTI/SemanticKITTI data (stream scans on demand)
+            seq_path = os.path.join(self.path_to_dataset, 'sequences', self.sequence)
+            T_cam_velo = self.dataset_handler.load_calib(os.path.join(self.path_to_dataset, 'calib.txt'))
+            poses_cam = self.dataset_handler.load_poses(os.path.join(seq_path, 'poses', f'{self.sequence}.txt'))
+            poses = self.dataset_handler.project_poses_to_velo(poses_cam, T_cam_velo)
+            scan_dir = os.path.join(seq_path, 'velodyne')
+            scan_files = sorted(os.listdir(scan_dir))
         elif DATASET_NAME == 'Apollo-SouthBay':
-            ## Load the Apollo-SouthBay dataset
-            poses, scans, _ = self.dataset_handler.load_apollo_southbay(session=self.session, sequence=self.sequence, type_data=self.data_type)
+            ## Prepare Apollo-SouthBay data (stream scans on demand)
+            base_path = os.path.join(self.path_to_dataset, self.data_type, self.sequence, self.session)
+            poses, _ = self.dataset_handler.load_poses(os.path.join(base_path, 'poses', 'gt_poses.txt'))
+            scan_dir = os.path.join(base_path, 'pcds')
+            scan_files = sorted(os.listdir(scan_dir), key=lambda x: int(x.split('.')[0]))
         else:
             raise ValueError(f'Dataset {DATASET_NAME} not supported')
 
+        total_frames = min(len(poses), len(scan_files))
+
         ## Go through the data and sample the keyframes
-        for i in tqdm(range(0, len(poses)), total=len(poses), desc=f'Sampling keyframes ({self.sampling_method})'):
+        for i in tqdm(range(total_frames), total=total_frames, desc=f'Sampling keyframes ({self.sampling_method})'):
             ## Get the current pose
             pose = poses[i]
-            ## Get the current scan
-            scan = scans[i]
+            ## Load the current scan on demand
+            scan_path = os.path.join(scan_dir, scan_files[i])
+            if DATASET_NAME in ['KITTI', 'SemanticKitti']:
+                raw_scan = np.fromfile(scan_path, dtype=np.float32).reshape(-1, 4)
+                homogeneous_scan = raw_scan[:, 0:3]
+                scan = np.ones((homogeneous_scan.shape[0], homogeneous_scan.shape[1] + 1))
+                scan[:, :-1] = homogeneous_scan
+            else:  # Apollo-SouthBay
+                scan = self.dataset_handler.load_scan(scan_path)
+
             ## Get descriptor
             if self.descriptor_method == 'ot':
                 descriptor = self.desc_handler.get_descriptor(scan, self.feature_extracter)
