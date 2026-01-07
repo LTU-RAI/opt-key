@@ -1,14 +1,13 @@
 """
-    
+    This script contains the RMIP_Online class used to sample keyframes based on 
+        redundancy minimization and information preservation.
 """
 
 import itertools, sys, time
 import numpy as np
 from typing import List, Tuple
-sys.path.append('/home/niksta/python_projects/msa')
-from utils.Keyframe import Keyframe, Keyframes
-import warnings
-warnings.filterwarnings("error", category=RuntimeWarning)
+sys.path.append('.')
+from optkey_utils.Keyframe import Keyframe, Keyframes
 
 class RMIP_Online:
     def __init__(self, window_size:int=10,

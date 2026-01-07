@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import List
 from scipy import stats
-from utils.Keyframe import Keyframe, Keyframes
+from optkey_utils.Keyframe import Keyframe, Keyframes
 
 
 class EntropyOnline:

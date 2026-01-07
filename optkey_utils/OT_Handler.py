@@ -6,9 +6,9 @@ import os, cv2, tqdm
 import numpy as np
 from typing import Tuple
 from concurrent.futures import ThreadPoolExecutor
-from utils.DescriptorHandler import DescriptorHandler
-from utils.descriptors.OverlapTransformer.modules.overlap_transformer import *
-from utils.descriptors.OverlapTransformer.tools.overlap_utils.overlap_utils import *
+from optkey_utils.DescriptorHandler import DescriptorHandler
+from optkey_utils.descriptors.OverlapTransformer.modules.overlap_transformer import *
+from optkey_utils.descriptors.OverlapTransformer.tools.overlap_utils.overlap_utils import *
 from matplotlib import pyplot as plt
 
 class OT_Handler(DescriptorHandler):
