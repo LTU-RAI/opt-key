@@ -1,0 +1,39 @@
+## Path to dataset
+dataset_path: '/home/niksta/Documents/datasets_2'
+## Dataset to be used: SemanticKitti (or just KITTI), ApolloSouth-Bay
+dataset: 
+  name: 'SemanticKitti'
+  ## KITTI sequences to use -> List[str]
+  sequence: '05' 
+  # '00', '05', '06' ... for SemanticKitti or 
+  # 'ColumbiaPark', 'SanJoseDowntown', 'SunnyvaleBigloop' ... for ApolloSouth-Bay
+  ## For ApolloSouth-Bay we need to specify the session and data type, for KITTI it doesn't matter
+  session: '2018-10-11' # '2018-10-11', '2018-09-21', ...
+  data_type: 'MapData'  # 'MapData' or 'TestData'
+## Choose descriptor -> str
+descriptor: 'ot' # 'ot' or 'sc'
+## Path to weights file if using learning-based descriptor (e.g. 'ot') -> str
+weights_path: '/home/niksta/python_projects/opt-key/optkey_utils/descriptors/OverlapTransformer/config/weights/pretrained_overlap_transformer.pth.tar'
+## Path to save results
+save_path: /home/niksta/python_projects/opt-key/results
+
+## Sampling method to evaluate -> str
+## Options: 'entropy', 'spaciousness', 'fixed_0.1', 'fixed_1', 'fixed_3', 'optimized'
+## For 'fixed_X', X is the fixed distance threshold in meters
+method: 'optimized'
+
+## Place recognition parameters
+## Distance to classify as a true positive -> float
+delta: 3.0
+## Number of candidates to query -> int
+n_candidates: 10
+
+## Optimization parameters
+alpha: 1.0
+beta: 1.0
+## Min multiplier
+min_mult: 0.1 # 0.0, 0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+## Max multiplier
+max_mult: 3.0  # 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0
+## Window size -> int
+window_size: 10
