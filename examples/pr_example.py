@@ -236,8 +236,8 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
         controls = {'paused': False, 'step': 0}
 
         def on_key(event):
-            key = (event.key or '').lower()
-            if key == 'p':
+            key = event.key or ''
+            if key == ' ':
                 controls['paused'] = not controls['paused']
             elif key == 'right':
                 controls['paused'] = True
