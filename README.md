@@ -80,7 +80,7 @@ Supported datasets:
 
 - **[KITTI Odometry](https://www.cvlibs.net/datasets/kitti/eval_odometry.php)** / **[SemanticKITTI](https://semantic-kitti.org/dataset.html#download)** — Using [KITTI_Handler.py](optkey_utils/KITTI_Handler.py)
 - **[Apollo-SouthBay](https://developer.apollo.auto/southbay.html)** — Using [ApolloSouthBay_Handler.py](optkey_utils/ApolloSouthBay_Handler.py)
-- **[MulRan](https://sites.google.com/view/mulran-pr/dataset)** — Use [MulRan_Handler.py](optkey_utils/MulRan_Handler.py)
+- **[MulRan](https://sites.google.com/view/mulran-pr/dataset)** — Using [MulRan_Handler.py](optkey_utils/MulRan_Handler.py)
 - **[NewerCollege](https://ori-drs.github.io/newer-college-dataset/)** — Using [NewerCollege_Handler.py](optkey_utils/NewerCollege_Handler.py)
 
 Download your dataset and verify its structure matches the handler's expectations. Check the corresponding handler file (e.g., `KITTI_Handler.py`) for the required directory layout.
@@ -103,8 +103,8 @@ See [KITTI_Handler.py](optkey_utils/KITTI_Handler.py) or [MulRan_Handler.py](opt
 
 Supported descriptors:
 
-- **[OverlapTransformer](https://github.com/haomo-ai/OverlapTransformer)** — Use [OT_Handler.py](optkey_utils/OT_Handler.py) (requires pretrained weights)
-- **[ScanContext](https://github.com/gisbi-kim/scancontext)** — Use [SC_Handler.py](optkey_utils/SC_Handler.py) (geometric, no training required)
+- **[OverlapTransformer](https://github.com/haomo-ai/OverlapTransformer)** — Using [OT_Handler.py](optkey_utils/OT_Handler.py) (requires pretrained weights)
+- **[ScanContext](https://github.com/gisbi-kim/scancontext)** — Using [SC_Handler.py](optkey_utils/SC_Handler.py) (geometric, no training required)
 
 Install descriptor dependencies in `/optkey_utils/descriptors/` following the original repository instructions. Update your config file with the descriptor choice and weights path (if applicable).
 
