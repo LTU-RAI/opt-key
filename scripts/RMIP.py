@@ -11,7 +11,7 @@ from optkey_utils.Keyframe import Keyframe, Keyframes
 
 class RMIP_Online:
     def __init__(self, window_size:int=10,
-                       n_neighbours:int=10,
+                       n_neighbours:int=0,
                        delta_min:float=1.0,
                        delta_max:float=5.0,
                        alpha:float=1.0,
@@ -282,27 +282,29 @@ class RMIP_Online:
                     print(f'Current window idnex: {self.window_index}')
                     print(f'Window keyframes: {self.window_keyframes}')
             ## Check if the are neighbours to include in the window
-            # if self.index >= 10:
-                # temp_keyframes = self.keyframes._get_neighbours(self.window_keyframes[-1].pose, n=self.n_neighbours)
-                # ## Check if there are any neighbours that are within delta_max and they are not already in the window
-                # for keyframe in temp_keyframes:
-                #     if np.linalg.norm(keyframe.pose[0:3, 3] - self.window_keyframes[-1].pose[0:3, 3]) <= self.delta_max:
-                #         if  keyframe.index not in [key.index for key in self.window_keyframes]:
-                #             self.window_keyframes._append(keyframe)
-                #             self.window_index += 1
-                #             # print(f'Found neighbour: {keyframe.index}')
-                #             # print(f'Added to current window with idnex: {self.window_index}')
-                #             # print(f'New Window keyframes: {self.window_keyframes}')
+            if self.n_neighbours > 0:
+                if self.index >= self.window_size:
+                    temp_keyframes = self.keyframes._get_neighbours(self.window_keyframes[-1].pose, n=self.n_neighbours)
+                    ## Check if there are any neighbours that are within delta_max and they are not already in the window
+                    for keyframe in temp_keyframes:
+                        if np.linalg.norm(keyframe.pose[0:3, 3] - self.window_keyframes[-1].pose[0:3, 3]) <= self.delta_max:
+                            if  keyframe.index not in [key.index for key in self.window_keyframes]:
+                                self.window_keyframes._append(keyframe)
+                                self.window_index += 1
+                                if self.verbose:
+                                    print(f'Found neighbour: {keyframe.index}')
+                                    print(f'Added to current window with idnex: {self.window_index}')
+                                    print(f'New Window keyframes: {self.window_keyframes}')
         if self.verbose:
             print(f'Window index: {self.window_index}, Window size: {self.window_size}')
         if self.window_index >= self.window_size:#-1:
             
-            # Get adaptive bounds
+            ## Get adaptive bounds
             avg_dist = self.average_distance(self.window_keyframes._get_poses(range(len(self.window_keyframes))))
             if self.global_avg_distance == 0.0:
                 self.global_avg_distance = avg_dist
             else:
-                # if avg_dist > 0.01:
+                ## if avg_dist > 0.01:
                 self.global_avg_distance = (self.global_avg_distance + avg_dist) / 2
             
             self.delta_min = self.min_mult * self.global_avg_distance if self.global_avg_distance > 0.01 else 0.01
