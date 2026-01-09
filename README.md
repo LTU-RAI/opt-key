@@ -76,31 +76,50 @@ pip install -r requirements.txt
 
 ### Dataset Setup
 
-There is currently support for the following datasets:
+Supported datasets:
 
-- [KITTI Odometry](https://www.cvlibs.net/datasets/kitti/eval_odometry.php)/[SemanticKITTI](https://semantic-kitti.org/dataset.html#download)
-- [Apollo-SouthBay](https://developer.apollo.auto/southbay.html)
-- [MulRan](https://sites.google.com/view/mulran-pr/dataset)
-- [NewerCollege](https://ori-drs.github.io/newer-college-dataset/)
+- **[KITTI Odometry](https://www.cvlibs.net/datasets/kitti/eval_odometry.php)** / **[SemanticKITTI](https://semantic-kitti.org/dataset.html#download)** — Using [KITTI_Handler.py](optkey_utils/KITTI_Handler.py)
+- **[Apollo-SouthBay](https://developer.apollo.auto/southbay.html)** — Using [ApolloSouthBay_Handler.py](optkey_utils/ApolloSouthBay_Handler.py)
+- **[MulRan](https://sites.google.com/view/mulran-pr/dataset)** — Use [MulRan_Handler.py](optkey_utils/MulRan_Handler.py)
+- **[NewerCollege](https://ori-drs.github.io/newer-college-dataset/)** — Using [NewerCollege_Handler.py](optkey_utils/NewerCollege_Handler.py)
 
-For the datasets you want to use, download the dataset from the respective site and check the corresponding handler script in the /optkey_utils folder e.g. KITTI_Handler.py, MulRan_Handler.py etc. to make sure that your dataset has the expected directory structure.
+Download your dataset and verify its structure matches the handler's expectations. Check the corresponding handler file (e.g., `KITTI_Handler.py`) for the required directory layout.
 
 ### Custom Dataset
 
-If you want to test with another dataset that is currently not supported, all you need to do is make a respective handling script that follows the same structure as the handlers already provided KITTI_Handler.py, MulRan_Handler.py. Mainly functions like load_pose and load_scan.
+To add support for a new dataset:
+
+1. Create a handler class (e.g., `MyDataset_Handler.py`) in `/optkey_utils/`
+2. Implement the following methods:
+   - `load_poses(pose_path: str) -> Tuple[np.ndarray, np.ndarray]` — Returns poses (Nx4x4) and timestamps
+   - `load_scan(scan_path: str) -> np.ndarray` — Returns point cloud (Nx4) with homogeneous coordinates
+   - `sync_data(pose_timestamps, scan_timestamps) -> np.ndarray` — Synchronizes poses to scans
+3. Add the handler to `init_dataset_handler()` in your example script
+4. Update the config file with your dataset name, sequence, and paths
+
+See [KITTI_Handler.py](optkey_utils/KITTI_Handler.py) or [MulRan_Handler.py](optkey_utils/MulRan_Handler.py) for reference implementations.
 
 ### Descriptor Setup
 
-There is currently support for the following descriptors:
+Supported descriptors:
 
-- [OverlapTransformer](https://github.com/haomo-ai/OverlapTransformer)
-- [ScanContext](https://github.com/gisbi-kim/scancontext)
+- **[OverlapTransformer](https://github.com/haomo-ai/OverlapTransformer)** — Use [OT_Handler.py](optkey_utils/OT_Handler.py) (requires pretrained weights)
+- **[ScanContext](https://github.com/gisbi-kim/scancontext)** — Use [SC_Handler.py](optkey_utils/SC_Handler.py) (geometric, no training required)
 
-In the /optkey_utils/descriptors install the descriptor you want to use following the instructions by the original developers.
+Install descriptor dependencies in `/optkey_utils/descriptors/` following the original repository instructions. Update your config file with the descriptor choice and weights path (if applicable).
 
 ### Custom Descriptor
 
-If you want to test with another descriptor you need to make the handler similar to OT_Handler.py and SC_Handler.py following the DescriptorHandler.py template. Basically you need to specify the descriptor extraction process and the similarity/distance function.
+To implement a custom descriptor:
+
+1. Create a handler class extending [DescriptorHandler.py](optkey_utils/DescriptorHandler.py) (e.g., `MyDescriptor_Handler.py`)
+2. Implement the following methods:
+   - `get_descriptor(scan: np.ndarray) -> np.ndarray` — Extracts descriptor from a single scan
+   - `find_best_candidate(query_descriptor, map_descriptors) -> Tuple[float, int]` — Computes similarity and returns (score, best_match_index)
+3. Add the handler to `init_descriptor_handler()` in your example script
+4. Update the config file to specify your descriptor name
+
+See [OT_Handler.py](optkey_utils/OT_Handler.py) or [SC_Handler.py](optkey_utils/SC_Handler.py) for reference implementations.
 
 ---
 
