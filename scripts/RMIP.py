@@ -158,7 +158,7 @@ class RMIP_Online:
                 C = np.clip(C, -1e6, 1e6)
             lamda, v = np.linalg.eigh(C)
         except np.linalg.LinAlgError:
-            # print(f'Error in eigenvalues computation')
+            print(f'Error in eigenvalues computation')
             lamda = np.zeros(np.shape(C)[0])
             v = np.zeros(np.shape(C))
         return J, C, lamda, v
@@ -250,8 +250,9 @@ class RMIP_Online:
                 time: A float with the time
         """
         toc = time.time()
-        # print((f'---------------------------------'))
-        # print(f'Current sample index: {index}')
+        if self.verbose:
+            print((f'---------------------------------'))
+            print(f'Current sample index: {index}')
         ## Add the first keyframe
         if self.index == 0:
             self.keyframe = Keyframe(index=index,
@@ -277,8 +278,9 @@ class RMIP_Online:
             if np.linalg.norm(self.keyframe.pose[0:3, 3] - self.window_keyframes[-1].pose[0:3, 3]) >= 0.01:
                 self.window_keyframes._append(self.keyframe)
                 self.window_index += 1
-                # print(f'Current window idnex: {self.window_index}')
-                # print(f'Window keyframes: {self.window_keyframes}')
+                if self.verbose:
+                    print(f'Current window idnex: {self.window_index}')
+                    print(f'Window keyframes: {self.window_keyframes}')
             ## Check if the are neighbours to include in the window
             # if self.index >= 10:
                 # temp_keyframes = self.keyframes._get_neighbours(self.window_keyframes[-1].pose, n=self.n_neighbours)
@@ -291,7 +293,8 @@ class RMIP_Online:
                 #             # print(f'Found neighbour: {keyframe.index}')
                 #             # print(f'Added to current window with idnex: {self.window_index}')
                 #             # print(f'New Window keyframes: {self.window_keyframes}')
-        # print(f'Window index: {self.window_index}, Window size: {self.window_size}')
+        if self.verbose:
+            print(f'Window index: {self.window_index}, Window size: {self.window_size}')
         if self.window_index >= self.window_size:#-1:
             
             # Get adaptive bounds
@@ -305,17 +308,20 @@ class RMIP_Online:
             self.delta_min = self.min_mult * self.global_avg_distance if self.global_avg_distance > 0.01 else 0.01
             self.delta_max = self.max_mult * self.global_avg_distance if self.global_avg_distance < 5.00 else 5.00
             
-            # print(f'Current avg distance: {np.round(avg_dist,3)}')
-            # print(f'Global average distance: {np.round(self.global_avg_distance,3)}')
-            # print(f'Adaptive bounds: delta_min: {np.round(self.delta_min, 2)}, delta_max: {np.round(self.delta_max, 2)}')
+            if self.verbose:
+                print(f'Current avg distance: {np.round(avg_dist,3)}')
+                print(f'Global average distance: {np.round(self.global_avg_distance,3)}')
+                print(f'Adaptive bounds: delta_min: {np.round(self.delta_min, 2)}, delta_max: {np.round(self.delta_max, 2)}')
             
-            # print(f'Optimizing window')
+            if self.verbose:
+                print(f'Optimizing window')
             ## Get the optimal subset from the latest window
             tic = time.time()
             optimal_subset = self.optimize_objective(method='adaptive')
             toc = time.time()
-            print(f'Time to optimize window: {toc - tic}')
-            # print(f'Optimal subset: {optimal_subset}')
+            if self.verbose:
+                print(f'Optimization time: {np.round(toc - tic, 4)} seconds')
+                print(f'Optimal subset indexes: {optimal_subset}')
             ## Add the optimal subset to the keyframes except the first one
             for i in optimal_subset[1:]:
                 # print(f'Optimal subset index to add: {i}')
@@ -328,12 +334,13 @@ class RMIP_Online:
             for i in range(optimal_subset[-1]):
                 self.window_keyframes._delete(0)
             self.window_index = len(self.window_keyframes) - 1
-            self.index = len(self.keyframes) - 1
-            # print(f'Window keyframes after optimization: {self.window_keyframes}')
-            # print(f'New window index: {self.window_index}')
-            # print(f'Current Global Index: {self.index}')
-            # print(f'All Keyframes: {self.keyframes}')
-            # print((f'---------------------------------'))
+            self.index = len(self.keyframes) - 1        
+            if self.verbose:
+                print(f'Window keyframes after optimization: {self.window_keyframes}')
+                print(f'New window index: {self.window_index}')
+                print(f'Current Global Index: {self.index}')
+                print(f'All Keyframes: {self.keyframes}')
+                print((f'---------------------------------'))
         tic = time.time()
         # print(f'RMIP time: {tic - toc}')
         return tic - toc
