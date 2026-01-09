@@ -25,10 +25,6 @@ class MulRan_Handler:
                 /MulRan/
                 |── DCC
                     ├── DCC01
-                    │   ├── depth_map (contains the range images)
-                    │   │   |── depth
-                    │   │   │   ├── 000000.png
-                    │   │   |   ├── ...
                     │   ├── global_pose.csv (contains the csv file, timestamp and 3x4 transformation matrices)
                     │   ├── Ouster (contains the point clouds)
                     │   │   ├── 1567496149757432877.bin
@@ -258,26 +254,26 @@ class MulRan_Handler:
 
 
 ## Test loading the MulRan dataset
-if __name__ == '__main__':
-    ## Path to the MulRan dataset
-    path_to_dataset = '/home/niksta/python_projects/datasets/MulRan/DCC/'
-    ## Create a MulRan_Handler object
-    mulran_handler = MulRan_Handler(path_to_dataset, verbose=True)
-    ## Load the MulRan dataset
-    poses, scans, pose_timestamps, scan_timestamps = mulran_handler.load_mulran('DCC03')
-    ## Visualize the poses
-    mulran_handler.visualize_poses(poses)
-    ## Visualize the first scan
-    mulran_handler.plot_scan(scans[0])
-    ## Plot the pose to pose distances
-    pose_distances = np.linalg.norm(poses[1:, 0:3, 3] - poses[:-1, 0:3, 3], axis=1)
-    plt.figure()
-    plt.plot(pose_distances)
-    plt.xlabel('Pose index')
-    plt.ylabel('Distance [m]')
-    plt.title('Pose to pose distances')
-    plt.grid(alpha=0.5, linestyle='--', linewidth=1.0)
-    plt.savefig('pose_distances.png')
-    ## Print min and max timestamp difference between poses and scans
-    print(f'Min timestamp difference between poses and scans: {np.min(np.abs(pose_timestamps - scan_timestamps))}')
-    print(f'Max timestamp difference between poses and scans: {np.max(np.abs(pose_timestamps - scan_timestamps))}')    
+# if __name__ == '__main__':
+#     ## Path to the MulRan dataset
+#     path_to_dataset = '/home/niksta/python_projects/datasets/MulRan/DCC/'
+#     ## Create a MulRan_Handler object
+#     mulran_handler = MulRan_Handler(path_to_dataset, verbose=True)
+#     ## Load the MulRan dataset
+#     poses, scans, pose_timestamps, scan_timestamps = mulran_handler.load_mulran('DCC03')
+#     ## Visualize the poses
+#     mulran_handler.visualize_poses(poses)
+#     ## Visualize the first scan
+#     mulran_handler.plot_scan(scans[0])
+#     ## Plot the pose to pose distances
+#     pose_distances = np.linalg.norm(poses[1:, 0:3, 3] - poses[:-1, 0:3, 3], axis=1)
+#     plt.figure()
+#     plt.plot(pose_distances)
+#     plt.xlabel('Pose index')
+#     plt.ylabel('Distance [m]')
+#     plt.title('Pose to pose distances')
+#     plt.grid(alpha=0.5, linestyle='--', linewidth=1.0)
+#     plt.savefig('pose_distances.png')
+#     ## Print min and max timestamp difference between poses and scans
+#     print(f'Min timestamp difference between poses and scans: {np.min(np.abs(pose_timestamps - scan_timestamps))}')
+#     print(f'Max timestamp difference between poses and scans: {np.max(np.abs(pose_timestamps - scan_timestamps))}')    
