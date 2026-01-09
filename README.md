@@ -27,7 +27,7 @@
 
 - [💡 Introduction](#-introduction)
 - [🚀 Setup](#-setup) — [Prerequisites](#prerequisites) • [Installation](#installation) • [Environment Setup](#environment-setup) • [Dataset Setup](#dataset-setup) • [Descriptor Setup](#descriptor-setup)
-- [🕹️ Run the Examples](#-run-the-examples) — [Configuration](#configuration) • [Evaluations](#running-evaluations) • [Visualization](#live-visualization)
+- [🕹️ Run the Examples](#️-run-the-examples) — [Configuration](#configuration) • [Evaluations](#running-evaluations) • [Visualization](#live-visualization)
 - [🔜 Coming Soon](#-coming-soon)
 - [📝 Citation](#-citation)
 
@@ -47,7 +47,7 @@ For more information on how to adapt to your dataset or descriptor check [Custom
 
 ### Installation
 
-1. Clone the repository to your desired working directory:
+Clone the repository to your desired working directory:
 
 ```bash
 git clone https://github.com/LTU-RAI/opt-key.git
@@ -106,11 +106,11 @@ If you want to test with another descriptor you need to make the handler similar
 
 An example script is provided:
 
-- **pr_example.py** — Evaluates keyframe sampling methods with Precision-Recall metrics
+- **examples/pr_example.py** — Evaluates keyframe sampling methods with Precision-Recall metrics
 
 ### Configuration
 
-Update the config file in `/config/` with your dataset and descriptor paths. Template configs for each dataset are provided (e.g., `pr_config.yaml`, `kitti_config.yaml`).
+Update the config file in `/config/` with your dataset and descriptor paths. Template configs for each dataset are provided (e.g., `pr_config.yaml`, `kitti_config.yaml`, etc.).
 
 ### Running Evaluations
 
@@ -142,7 +142,7 @@ Options:
 
 After completion, results are printed to console and saved as a plot in your configured output directory (default: `/results/`). Example output from KITTI sequence 00:
 
-<p align=left> <img src="/results/pr_curve_SemanticKitti_00_ot.png" width="75%" height="75%"/> </p>
+<p align=center> <img src="/results/pr_curve_SemanticKitti_00_ot.png" width="95%" height="95%"/> </p>
 
 ### Live Visualization
 
@@ -151,9 +151,10 @@ Enable real-time visualization of the sampling process:
 ```bash
 python3 examples/pr_example.py --live
 ```
+<p align=center> <img src="/figures/kitti_00_msa_example.gif" width="95%" height="95%"/> </p>
 
 Key controls:
-- **P** — Pause/resume playback
+- **Space bar** — Pause/resume playback
 - **Right Arrow** — Step forward one frame
 
 **Note:** Running without visualization is significantly faster for batch evaluation.
