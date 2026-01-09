@@ -213,23 +213,18 @@ class SC_Handler(DescriptorHandler):
 
     ## Calculate the similarity between two descriptors.    
     def calculate_similarity(self, query_descr:np.ndarray, map_descr:np.ndarray) -> np.ndarray:
-        sc1 = query_descr
-        sc2 = map_descr
+        sc1 = np.asarray(query_descr, dtype=float)
+        sc2 = np.asarray(map_descr, dtype=float)
+        if sc1.ndim != 2 or sc2.ndim != 2:
+            sc1 = sc1.reshape(self.ring_res, self.sector_res)
+            sc2 = sc2.reshape(self.ring_res, self.sector_res)
         num_sectors = self.sector_res
-        # repeate to move 1 columns
         sim_for_each_cols = np.zeros(num_sectors)
+        rolled = sc1
         for i in range(num_sectors):
-            # Shift
-            one_step = 1 # const
-            sc1 = np.roll(sc1, one_step, axis=1) #  columne shift
-            # compare
-            norm_sc1 = np.linalg.norm(sc1, axis=0)
-            norm_sc2 = np.linalg.norm(sc2, axis=0)
-            nonzero_norm_indices = np.where((norm_sc1 != 0) & (norm_sc2 != 0))[0]
-            if len(nonzero_norm_indices) == 0:
+            rolled = np.roll(rolled, 1, axis=1)
+            denom = np.linalg.norm(rolled) * np.linalg.norm(sc2)
+            if denom == 0:
                 continue
-            cos_similarities = np.sum(sc1[:, nonzero_norm_indices] * sc2[:, nonzero_norm_indices], axis=0) / (norm_sc1[nonzero_norm_indices] * norm_sc2[nonzero_norm_indices])
-            sim_for_each_cols[i] = np.mean(cos_similarities)
-        sim = np.max(sim_for_each_cols)
-        ## Return similarity
-        return sim
+            sim_for_each_cols[i] = float(np.sum(rolled * sc2) / denom)
+        return float(np.max(sim_for_each_cols))
