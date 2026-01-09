@@ -27,7 +27,8 @@
 
 - [💡 Introduction](#-introduction)
 - [🚀 Setup](#-setup) — [Prerequisites](#prerequisites) • [Installation](#installation) • [Environment Setup](#environment-setup) • [Dataset Setup](#dataset-setup) • [Descriptor Setup](#descriptor-setup)
-- [🕹️ Run the Examples](#-run-the-examples) — []() • []()
+- [🕹️ Run the Examples](#-run-the-examples) — [Configuration](#configuration) • [Evaluations](#running-evaluations) • [Visualization](#live-visualization)
+- [🔜 Coming Soon](#-coming-soon)
 - [📝 Citation](#-citation)
 
 ---
@@ -39,10 +40,10 @@ Tested with Python 3.8 and 3.12, should work with other versions since there are
 ### Prerequisites
 
 - Python 3.8 or higher
-- To test the examples you will need at least one of the currently supported datasets (KITTI/SemanticKITTI, Apollo-SouthBay, MulRan or NewerCollege) or to adapt the examples to your desired dataset.
-- To test the example you will also need at least a descriptor extrcation method (OverlapTransformer or ScanContext) or to adapt the example to your desired descriptor.
+- At least one supported dataset: KITTI/SemanticKITTI, Apollo-SouthBay, MulRan, or NewerCollege (or adapt examples to your dataset)
+- At least one descriptor extraction method: OverlapTransformer or ScanContext (or implement a custom descriptor)
 
-For more information on how to adapt to your dataset or descriptor check [Custom Dataset] and [Custom Descriptor]
+For more information on how to adapt to your dataset or descriptor check [Custom Dataset](#custom-dataset) and [Custom Descriptor](#custom-descriptor)
 
 ### Installation
 
@@ -103,42 +104,65 @@ If you want to test with another descriptor you need to make the handler similar
 
 ## 🕹️ Run the Examples
 
-In the /config folder there is a main config file the pr_config.yaml and other ones which are the same but prefilled for each dataset. Make sure to change all the paths to your corresponding paths.
+An example script is provided:
 
-Then in the terminal run. 
+- **pr_example.py** — Evaluates keyframe sampling methods with Precision-Recall metrics
+
+### Configuration
+
+Update the config file in `/config/` with your dataset and descriptor paths. Template configs for each dataset are provided (e.g., `pr_config.yaml`, `kitti_config.yaml`).
+
+### Running Evaluations
 
 ```bash
 python3 examples/pr_example.py
 ```
 
-This will use by default the pr_config.py. If you wish to run a different config file then do:
+Or specify a custom config:
 
 ```bash
-python3 examples/pr_example.py --config /path/to/config
+python3 examples/pr_example.py --config /path/to/config.yaml
 ```
 
-In the config file you can choose if you want to run additional sampling methods such as a fixed distance interval sample or based on spaciousness, by adding extra string items in the list.
+### Sampling Methods
 
-e.g. For all methods and various fixed intervals: method: ['fixed_0', 'fixed_1', 'fixed_2', 'spaciousness', 'entropy', 'optimized']
+Configure which methods to evaluate in your config file:
 
-For only the proposed approach: 'optimized'
+```yaml
+method: ['fixed_0', 'fixed_1', 'fixed_2', 'spaciousness', 'entropy', 'optimized']
+```
 
-For th eoptimized versus all samples: ['fixed_0', 'optimized']
+Options:
+- `fixed_X` — Fixed distance threshold (X in meters)
+- `entropy` — Entropy-based sampling
+- `spaciousness` — Spaciousness-based sampling
+- `optimized` — Proposed MSA approach
 
-When the example finished, the AUC, F1-Max and the number of sampled keyframes is printed. You will also find the results in a plot form in your defined path (default /results). An example from KITTI sequence 00 is shown below:
+### Results
+
+After completion, results are printed to console and saved as a plot in your configured output directory (default: `/results/`). Example output from KITTI sequence 00:
 
 <p align=left> <img src="/results/pr_curve_SemanticKitti_00_ot.png" width="75%" height="75%"/> </p>
 
+### Live Visualization
 
-### Visualization
-
-There is an optional extra argument which enables a live visualization of the sampling processing as seen in the gif below:
+Enable real-time visualization of the sampling process:
 
 ```bash
 python3 examples/pr_example.py --live
 ```
 
-Note: Running the example without the visualization run significantly faster.
+Key controls:
+- **P** — Pause/resume playback
+- **Right Arrow** — Step forward one frame
+
+**Note:** Running without visualization is significantly faster for batch evaluation.
+
+## 🔜 Coming Soon
+
+TODO:
+- Add example with iSAM2 PGO.
+- Add ROS2 wrapper.
 
 ## 📝 Citation
 
