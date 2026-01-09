@@ -7,11 +7,13 @@ dataset:
   ## '00', '05', '06' ... for SemanticKITTI/KITTI or 
   ## 'ColumbiaPark', 'SanJoseDowntown', 'SunnyvaleBigloop' ... for ApolloSouth-Bay
   ## 'DCC', 'KAIST', ... for MulRan
+  ## 'collection 1-newer college', 'collection 1-newer college' ... for NewerCollege
   ## For ApolloSouth-Bay we need to specify the session and data type, for KITTI it doesn't matter
   ## For MulRan we need to specify the session only
   session: '2018-10-11'
   ## '2018-10-11', '2018-09-21', ... for ApolloSouth-Bay
   ## '01', '02', 'K01', 'K02', 'SC01', ... for MulRan
+  ## 'park', 'quad-easy', 'quad-hard' ... for NewerCollege
   data_type: 'MapData'  
   ## 'MapData' or 'TestData' for ApolloSouth-Bay
 ## Choose descriptor -> str

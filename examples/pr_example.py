@@ -13,6 +13,7 @@ from optkey_utils.OT_Handler import OT_Handler
 from optkey_utils.SC_Handler import SC_Handler
 from optkey_utils.KITTI_Handler import KITTI_Handler
 from optkey_utils.MulRan_Handler import MulRan_Handler
+from optkey_utils.NewerCollege_Handler import NewerCollege_Handler
 from optkey_utils.Keyframe import Keyframes
 from optkey_utils.ApolloSouthBay_Handler import ApolloSouthBay_Handler
 from optkey_utils.descriptors.OverlapTransformer.modules.overlap_transformer import *
@@ -20,7 +21,7 @@ from optkey_utils.descriptors.OverlapTransformer.tools.overlap_utils.overlap_uti
 
 
 ## Default path to config file (can be overridden via CLI)
-DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '../config/dataset_config.yaml')
+DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '../config/pr_config.yaml')
 
 ## Globals populated by load_config()
 config: Dict[str, Any] = {}
@@ -125,6 +126,8 @@ def init_dataset_handler() -> Any:
         return ApolloSouthBay_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
     if DATASET_NAME == 'MulRan':
         return MulRan_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
+    if DATASET_NAME == 'NewerCollege':
+        return NewerCollege_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
     raise ValueError('Dataset not supported')
 
 def load_dataset_files(dataset_handler) -> Tuple[np.ndarray, str, List[str]]:
@@ -153,6 +156,17 @@ def load_dataset_files(dataset_handler) -> Tuple[np.ndarray, str, List[str]]:
         pose_idx = dataset_handler.sync_data(pose_ts, scan_ts)
         poses_aligned = poses[pose_idx]
         return poses_aligned, scan_dir, scan_files
+    if DATASET_NAME == 'NewerCollege':
+        seq_path = os.path.join(PATH_TO_DATASET, SEQ, SESSION)
+        pose_path = os.path.join(seq_path, 'ground_truth', 'tum_format', f'gt-nc-{SESSION}.csv')
+        poses, pose_ts = dataset_handler.load_poses(pose_path)
+        scan_dir = os.path.join(seq_path, 'pcds')
+        scan_files = sorted(os.listdir(scan_dir), key=lambda x: float(x.split('-')[0] + '.' + x.split('-')[1].split('.')[0]))
+        scan_ts = np.array([float(f.split('-')[0] + '.' + f.split('-')[1].split('.')[0]) for f in scan_files], dtype=float)
+        scan_idx = dataset_handler.sync_data(pose_ts, scan_ts)
+        aligned_scan_files = [scan_files[i] for i in scan_idx]
+        poses_aligned = poses[:len(aligned_scan_files)]
+        return poses_aligned, scan_dir, aligned_scan_files
     raise ValueError(f'Dataset {DATASET_NAME} not supported')
 
 def build_sampler_context(method_label: str) -> Dict[str, Any]:
@@ -250,6 +264,8 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
                 scan[:, :-1] = homogeneous_scan
             else:
                 scan = dataset_handler.load_scan(scan_path)
+                if isinstance(scan, tuple):
+                    scan, _ = scan
 
             if DESCRIPTOR_METHOD == 'ot':
                 descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
@@ -339,6 +355,8 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
                 scan[:, :-1] = homogeneous_scan
             else:
                 scan = dataset_handler.load_scan(scan_path)
+                if isinstance(scan, tuple):
+                    scan, _ = scan
 
             if DESCRIPTOR_METHOD == 'ot':
                 descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
@@ -493,7 +511,7 @@ def update_live_plot(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate keyframe sampling methods.')
-    parser.add_argument('-c', '--config', default=path_to_config, help='Path to dataset_config.yaml')
+    parser.add_argument('-c', '--config', default=path_to_config, help='Path to config.yaml')
     parser.add_argument('--live', action='store_true', help='Enable live top-view visualization (optimized only)')
     args = parser.parse_args()
 

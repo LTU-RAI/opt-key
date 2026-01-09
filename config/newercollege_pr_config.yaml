@@ -2,15 +2,15 @@
 dataset_path: '/home/niksta/Documents/datasets_2'
 ## Dataset to be used: SemanticKitti (or just KITTI), 'ApolloSouth-Bay', 'MulRan', NewerCollege
 dataset: 
-  name: 'SemanticKitti' 
-  sequence: '05'
+  name: 'NewerCollege' 
+  sequence: 'collection 2-newer college'
   ## '00', '05', '06' ... for SemanticKITTI/KITTI or 
   ## 'ColumbiaPark', 'SanJoseDowntown', 'SunnyvaleBigloop' ... for ApolloSouth-Bay
   ## 'DCC01', 'DCC02', 'KAIST01', 'KAIST02', ... for MulRan
   ## 'collection 1-newer college', 'collection 1-newer college' ... for NewerCollege
   ## For ApolloSouth-Bay we need to specify the session and data type, for KITTI it doesn't matter
   ## For MulRan we need to specify the session only
-  session: '01' # '2018-10-11' 
+  session: 'park' # '2018-10-11' 
   ## '2018-10-11', '2018-09-21', ... for ApolloSouth-Bay
   ## '01', '02', 'K01', 'K02', 'SC01', ... for MulRan
   ## 'park', 'quad-easy', 'quad-hard' ... for NewerCollege
