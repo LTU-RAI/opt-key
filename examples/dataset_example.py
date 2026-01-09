@@ -12,6 +12,7 @@ from scripts.RMIP import RMIP_Online
 from optkey_utils.OT_Handler import OT_Handler
 from optkey_utils.SC_Handler import SC_Handler
 from optkey_utils.KITTI_Handler import KITTI_Handler
+from optkey_utils.MulRan_Handler import MulRan_Handler
 from optkey_utils.Keyframe import Keyframes
 from optkey_utils.ApolloSouthBay_Handler import ApolloSouthBay_Handler
 from optkey_utils.descriptors.OverlapTransformer.modules.overlap_transformer import *
@@ -122,6 +123,8 @@ def init_dataset_handler() -> Any:
         return KITTI_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
     if DATASET_NAME == 'Apollo-SouthBay':
         return ApolloSouthBay_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
+    if DATASET_NAME == 'MulRan':
+        return MulRan_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
     raise ValueError('Dataset not supported')
 
 def load_dataset_files(dataset_handler) -> Tuple[np.ndarray, str, List[str]]:
@@ -140,6 +143,16 @@ def load_dataset_files(dataset_handler) -> Tuple[np.ndarray, str, List[str]]:
         scan_dir = os.path.join(base_path, 'pcds')
         scan_files = sorted(os.listdir(scan_dir), key=lambda x: int(x.split('.')[0]))
         return poses, scan_dir, scan_files
+    if DATASET_NAME == 'MulRan':
+        seq_path = os.path.join(PATH_TO_DATASET, SEQ, SEQ + SESSION)
+        poses, pose_ts = dataset_handler.load_poses(os.path.join(seq_path, 'global_pose.csv'))
+        scan_dir = os.path.join(seq_path, 'Ouster')
+        scan_files = sorted(os.listdir(scan_dir))
+        # derive scan timestamps from filenames to time-sync to nearest pose
+        scan_ts = np.array([int(f.split('.')[0]) * 1e-9 for f in scan_files], dtype=float)
+        pose_idx = dataset_handler.sync_data(pose_ts, scan_ts)
+        poses_aligned = poses[pose_idx]
+        return poses_aligned, scan_dir, scan_files
     raise ValueError(f'Dataset {DATASET_NAME} not supported')
 
 def build_sampler_context(method_label: str) -> Dict[str, Any]:
@@ -158,7 +171,7 @@ def build_sampler_context(method_label: str) -> Dict[str, Any]:
                                      theta_min=3.0, theta_mid=5.0,
                                      theta_max=10.0, queue_size=10)
     elif method_label == 'optimized':
-        sampler = RMIP_Online(n_neighbours=2, alpha=ALPHA, beta=BETA, window_size=WINDOW_SIZE, verbose=False)
+        sampler = RMIP_Online(alpha=ALPHA, beta=BETA, window_size=WINDOW_SIZE, verbose=False)
     else:
         raise ValueError(f'Sampling method "{method_label}" not supported. Options: entropy, spaciousness, fixed_X, optimized')
 
@@ -192,7 +205,7 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
     total_frames = min(len(poses), len(scan_files))
 
     live_ctx = None
-    fig = ax = handles = None
+    fig = ax_map = ax_bar = handles = None
     seen_optimization_events = 0
     optimized_window_snapshot = np.empty((0, 2))
     optimized_selected_xy = np.empty((0, 2))
@@ -201,7 +214,7 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
     if live:
         live_ctx = next((c for c in contexts if c['sampling_method'] == 'optimized'), None)
         if live_ctx is not None:
-            fig, ax, handles = create_live_plot()
+            fig, (ax_map, ax_bar), handles = create_live_plot()
         else:
             live = False
 
@@ -292,8 +305,11 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
                 last_kept_xy = np.empty((0, 2))
                 trajectory_xy = np.empty((0, 2))
 
+            kept_pct = (len(sampler.keyframes.keyframes) / float(idx + 1)) * 100.0 if idx + 1 > 0 else 0.0
+
             update_live_plot(
-                ax,
+                ax_map,
+                ax_bar,
                 handles,
                 scan_xy,
                 window_xy,
@@ -301,6 +317,7 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
                 optimized_selected_xy,
                 last_kept_xy,
                 trajectory_xy,
+                kept_pct,
                 current_pose_xy=(pose[0, 3], pose[1, 3]),
             )
 
@@ -354,23 +371,37 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
     return metrics_list
 
 def plot_precision_recall_curves(metrics_list: List[Dict[str, Any]], save_dir: str, filename: str = 'precision_recall_curve.png') -> str:
-    """Plot Precision-Recall curves for all methods on the same figure."""
+    """Plot PR curves and bar comparison of keyframes kept per method."""
     if not metrics_list:
         raise ValueError('No metrics provided for plotting PR curves.')
 
     os.makedirs(save_dir, exist_ok=True)
-    plt.figure()
+    fig, (ax_pr, ax_bar) = plt.subplots(1, 2, figsize=(12, 5), gridspec_kw={'width_ratios': [3, 1]})
+
+    # Precision-Recall curves
     for metrics in metrics_list:
         label = f"{metrics['method']} (AUC: {metrics['auc']*100:.2f}%, F1: {metrics['f1']*100:.2f}%)"
-        plt.plot(metrics['recalls'], metrics['precisions'], label=label)
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.title('Precision-Recall curves')
-    plt.grid(True)
-    plt.legend()
+        ax_pr.plot(metrics['recalls'], metrics['precisions'], label=label)
+    ax_pr.set_xlabel('Recall')
+    ax_pr.set_ylabel('Precision')
+    ax_pr.set_title('Precision-Recall curves')
+    ax_pr.grid(True)
+    ax_pr.legend()
+
+    # Keyframes comparison bar chart
+    methods = [m['method'] for m in metrics_list]
+    keyframes_counts = [m.get('num_keyframes', 0) for m in metrics_list]
+    bars = ax_bar.bar(methods, keyframes_counts, color='C0', alpha=0.8)
+    ax_bar.set_ylabel('Keyframes kept')
+    ax_bar.set_title('Keyframes per method')
+    ax_bar.grid(True, axis='y', linestyle='--', alpha=0.3)
+    for bar, count in zip(bars, keyframes_counts):
+        ax_bar.text(bar.get_x() + bar.get_width() / 2.0, count + max(1, 0.01 * max(keyframes_counts, default=1)), f'{count}', ha='center', va='bottom', fontsize=9)
+
+    fig.tight_layout()
     output_path = os.path.join(save_dir, filename)
-    plt.savefig(output_path)
-    plt.close()
+    fig.savefig(output_path)
+    plt.close(fig)
     return output_path
 
 def methods_to_list(methods_cfg: Any) -> List[str]:
@@ -383,30 +414,46 @@ def methods_to_list(methods_cfg: Any) -> List[str]:
 
 
 def create_live_plot():
-    """Initialize live matplotlib plot for top-view visualization."""
+    """Initialize live matplotlib plot for top-view visualization with kept-percentage subplot."""
     plt.ion()
-    fig, ax = plt.subplots()
-    ax.set_title('Top-View Live Visualization (MSA Sampling)')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_aspect('equal', adjustable='datalim')
-    scan_scatter = ax.scatter([], [], s=2, c='gray', alpha=0.35, label='Scan')
-    optimized_window_scatter = ax.scatter([], [], s=40, c='k', marker='o', linewidths=1.0, edgecolors='k', label='Prev. Window')
-    traj_scatter = ax.scatter([], [], s=40, c='C0', marker='o', linewidths=1.0, edgecolors='k', label='Registered KFs')
-    window_scatter = ax.scatter([], [], s=40, c='C1', marker='o', linewidths=1.0, edgecolors='k', label='Cur. Window KFs')
-    selected_scatter = ax.scatter([], [], s=40, c='red', marker='o', linewidths=1.0, edgecolors='k', label='Optimized KF')
-    ax.legend(loc='upper right')
-    return fig, ax, {
+    fig, (ax_map, ax_bar) = plt.subplots(1, 2, figsize=(10, 5), gridspec_kw={'width_ratios': [3, 1]})
+
+    # Map view
+    ax_map.set_title('Top-View Live Visualization (MSA Sampling)')
+    ax_map.set_xlabel('X')
+    ax_map.set_ylabel('Y')
+    ax_map.set_aspect('equal', adjustable='datalim')
+    scan_scatter = ax_map.scatter([], [], s=2, c='gray', alpha=0.35, label='Scan')
+    optimized_window_scatter = ax_map.scatter([], [], s=40, c='k', marker='o', linewidths=1.0, edgecolors='k', label='Prev. Window')
+    traj_scatter = ax_map.scatter([], [], s=40, c='C0', marker='o', linewidths=1.0, edgecolors='k', label='Optimized KFs')
+    window_scatter = ax_map.scatter([], [], s=40, c='C1', marker='o', linewidths=1.0, edgecolors='k', label='Cur. Window')
+    selected_scatter = ax_map.scatter([], [], s=40, c='red', marker='o', linewidths=1.0, edgecolors='k', label='Selected KF')
+    ax_map.legend(loc='upper right')
+
+    # Kept percentage bar
+    ax_bar.set_title('Keyframes Kept')
+    ax_bar.set_xlim(-0.5, 0.5)
+    ax_bar.set_ylim(0, 100)
+    kept_bar = ax_bar.bar([0], [0], width=0.6, color='C0')[0]
+    kept_text = ax_bar.text(0, 5, '0%', ha='center', va='bottom', fontsize=10, fontweight='bold')
+    ax_bar.set_xticks([])
+    ax_bar.set_ylabel('Percent')
+    ax_bar.grid(True, axis='y', linestyle='--', alpha=0.3)
+
+    return fig, (ax_map, ax_bar), {
         'scan': scan_scatter,
         'window': window_scatter,
         'optimized_window': optimized_window_scatter,
         'selected': selected_scatter,
         'traj': traj_scatter,
+        'kept_bar': kept_bar,
+        'kept_text': kept_text,
     }
 
 
 def update_live_plot(
-    ax,
+    ax_map,
+    ax_bar,
     handles,
     scan_xy: np.ndarray,
     window_xy: np.ndarray,
@@ -414,6 +461,7 @@ def update_live_plot(
     optimized_selected_xy: np.ndarray,
     last_kept_xy: np.ndarray,
     trajectory_xy: np.ndarray,
+    kept_percent: float,
     current_pose_xy: Tuple[float, float],
 ) -> None:
     """Update live plot elements and keep view centered on current pose."""
@@ -422,12 +470,19 @@ def update_live_plot(
     handles['optimized_window'].set_offsets(optimized_window_xy if optimized_window_xy.size else np.empty((0, 2)))
     handles['selected'].set_offsets(optimized_selected_xy if optimized_selected_xy.size else np.empty((0, 2)))
     handles['traj'].set_offsets(trajectory_xy if trajectory_xy.size else np.empty((0, 2)))
-    ax.relim()
-    ax.autoscale_view()
+
+    ax_map.relim()
+    ax_map.autoscale_view()
     view_span = 80.0
     cx, cy = current_pose_xy
-    ax.set_xlim(cx - view_span, cx + view_span)
-    ax.set_ylim(cy - view_span, cy + view_span)
+    ax_map.set_xlim(cx - view_span, cx + view_span)
+    ax_map.set_ylim(cy - view_span, cy + view_span)
+
+    handles['kept_bar'].set_height(kept_percent)
+    handles['kept_text'].set_text(f'{kept_percent:.1f}%')
+    handles['kept_text'].set_y(max(kept_percent, 5))
+    ax_bar.set_ylim(0, 100)
+
     plt.pause(0.001)
 
 
@@ -441,5 +496,5 @@ if __name__ == '__main__':
 
     method_list = methods_to_list(METHODS)
     metrics_list = run_sampling_methods(method_list, live=args.live)
-    pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=f'pr_curve_{DATASET_NAME}_{SEQ}.png')
+    pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=f'pr_curve_{DATASET_NAME}_{SEQ}_{SESSION}.png')
     print(f'Precision-Recall plot saved to: {pr_curve_path}')

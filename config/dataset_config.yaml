@@ -2,14 +2,18 @@
 dataset_path: '/home/niksta/Documents/datasets_2'
 ## Dataset to be used: SemanticKitti (or just KITTI), ApolloSouth-Bay
 dataset: 
-  name: 'SemanticKitti'
-  ## KITTI sequences to use -> List[str]
-  sequence: '05' 
-  # '00', '05', '06' ... for SemanticKITTI/KITTI or 
-  # 'ColumbiaPark', 'SanJoseDowntown', 'SunnyvaleBigloop' ... for ApolloSouth-Bay
+  name: 'SemanticKitti' # 'SemanticKitti', 'KITTI', 'ApolloSouth-Bay', 'MulRan'
+  sequence: '05'
+  ## '00', '05', '06' ... for SemanticKITTI/KITTI or 
+  ## 'ColumbiaPark', 'SanJoseDowntown', 'SunnyvaleBigloop' ... for ApolloSouth-Bay
+  ## 'DCC01', 'DCC02', 'KAIST01', 'KAIST02', ... for MulRan
   ## For ApolloSouth-Bay we need to specify the session and data type, for KITTI it doesn't matter
-  session: '2018-10-11' # '2018-10-11', '2018-09-21', ...
-  data_type: 'MapData'  # 'MapData' or 'TestData'
+  ## For MulRan we need to specify the session only
+  session: '01' # '2018-10-11' 
+  ## '2018-10-11', '2018-09-21', ... for ApolloSouth-Bay
+  ## '01', '02', 'K01', 'K02', 'SC01', ... for MulRan
+  data_type: 'MapData'  
+  ## 'MapData' or 'TestData' for ApolloSouth-Bay
 ## Choose descriptor -> str
 descriptor: 'ot' # 'ot' or 'sc'
 ## Path to weights file if using learning-based descriptor (e.g. 'ot') -> str
@@ -18,7 +22,7 @@ weights_path: '/home/niksta/python_projects/opt-key/optkey_utils/descriptors/Ove
 save_path: /home/niksta/python_projects/opt-key/results
 
 ## Sampling methods to evaluate -> str or list[str]
-## Options: 'entropy', 'spaciousness', 'fixed_0.1', 'fixed_1', 'fixed_3', 'optimized'
+## Options: 'entropy', 'spaciousness', 'fixed_X', 'optimized'
 ## For 'fixed_X', X is the fixed distance threshold in meters; multiple entries will be run and compared
 method: ['fixed_0', 'fixed_1', 'fixed_2', 'spaciousness', 'entropy', 'optimized']
 
