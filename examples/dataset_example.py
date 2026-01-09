@@ -1,7 +1,7 @@
 import yaml, sys, os
 import numpy as np
 from tqdm import tqdm
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 import matplotlib.pyplot as plt
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from scripts.Entropy import EntropyOnline
@@ -11,12 +11,11 @@ from scripts.RMIP import RMIP_Online
 from optkey_utils.OT_Handler import OT_Handler
 from optkey_utils.SC_Handler import SC_Handler
 from optkey_utils.KITTI_Handler import KITTI_Handler
-from optkey_utils.Keyframe import Keyframes, Keyframe
+from optkey_utils.Keyframe import Keyframes
 from optkey_utils.ApolloSouthBay_Handler import ApolloSouthBay_Handler
 from optkey_utils.descriptors.OverlapTransformer.modules.overlap_transformer import *
 from optkey_utils.descriptors.OverlapTransformer.tools.overlap_utils.overlap_utils import *
-# from optkey_utils.PGO import PGO
-from scipy.spatial.transform import Rotation as R
+
 
 ## Path to config file
 path_to_config = '/home/niksta/python_projects/opt-key/config/dataset_config.yaml'
@@ -45,240 +44,204 @@ PATH_TO_SAVE = config['save_path']
 ALPHA = config['alpha']
 BETA = config['beta']
 WINDOW_SIZE = config['window_size']
-## Sampling method to evaluate
-METHOD = config['method']
+## Sampling methods to evaluate (can be a single string or a list)
+METHODS = config['method']
 ## Distance to classify as a true positive
 DELTA = config['delta']
 ## Number of candidates to query
 N_CANDIDATES = config['n_candidates']
 
 
-class EvaluateOnline:
-    def __init__(self, 
-                 path_to_dataset:str, 
-                 session:str,
-                 sequence:str,
-                 descriptor_method:str,
-                 sampling_method:str,
-                 data_type:str='MapData',
-                 path_to_weights:str=None
-                ) -> None:
-        """
-            This class is used to evaluate the keyframe selection methods online
-                (place recognition) on any session on KITTI or Apollo-SouthBay dataset.
-            Args:
-                path_to_dataset: A string with the path to the dataset
-                session: A string with the session to evaluate (Apollo-SouthBay only)
-                sequence: String with the sequence to evaluate
-                descriptor_method: A string with the descriptor method to use
-                sampling_method: A string with the sampling method to evaluate
-                    Options: 'entropy', 'spaciousness', 'fixed_1', 'fixed_3', 'fixed_5', 'optimized'
-                data_type: A string with the data split (Apollo-SouthBay only) -> 'MapData', 'TrainData', 'TestData'
-                path_to_weights: A string with the path to the descriptor weights
-        """
-        ## Initialize the parameters
-        self.path_to_dataset = path_to_dataset
-        self.session = session
-        self.sequence = sequence
-        self.descriptor_method = descriptor_method
-        self.sampling_method = sampling_method
-        ## Check if is part of the 'fixed' and get the fixed distance 
-        if 'fixed' in sampling_method:
-            self.fixed_distance = float(sampling_method.split('_')[1])
-            self.sampling_method = 'fixed'
-        self.data_type = data_type
-        self.path_to_weights = path_to_weights
-        ## Initialize the descriptor handler
-        self.init_descriptor_handler()
-        ## Initialize the keyframe selection methods
-        self.init_keyframe_selection_methods()
-        ## Initialize the dataset handler
-        self.init_dataset_handler()
-        ## Initialize lists for metrics
-        self.similarities = []
-        self.distances = []
-        return None
+def compute_pr_metrics_from_arrays(similarities: List[float], distances: List[float], method_label: str) -> Dict[str, Any]:
+    """Compute Precision-Recall metrics for provided similarity/distance lists."""
+    precisions = []
+    recalls = []
+    f1_scores = []
+    thetas = np.arange(0, 100, 1)
+    sim_array = np.array(similarities)
+    dist_array = np.array(distances)
 
-    def init_descriptor_handler(self) -> None:
-        ## Initialize Descritor handler
-        if self.descriptor_method == 'ot':
-            ## Initialize the OverlapTransformer handler
-            self.desc_handler = OT_Handler(dist_threshold=3.0, 
-                                           theta_threshold=0.8,
-                                           verbose=True)
-            ## Get the OT feature extracter
-            self.feature_extracter = self.desc_handler.get_extracter(self.path_to_weights)
-        elif self.descriptor_method == 'sc':
-            ## Initialize the Scan Context handler
-            self.desc_handler = SC_Handler(downcell_size=0.5, 
-                                            lidar_height=2.0, 
-                                            sector_res=60, 
-                                            ring_res=20, 
-                                            max_length=80, 
-                                            verbose=True)
+    for theta in thetas:
+        threshold = theta / 100
+        tp = np.sum((sim_array >= threshold) & (dist_array <= DELTA))
+        fp = np.sum((sim_array > threshold) & (dist_array > DELTA))
+        fn = np.sum((sim_array < threshold) & (dist_array <= DELTA))
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 1
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        precisions.append(precision)
+        recalls.append(recall)
+        f1_scores.append(f1_score)
+
+    auc = float(-np.trapz(precisions, recalls))
+    best_f1 = float(np.max(f1_scores)) if f1_scores else 0.0
+    return {
+        'method': method_label,
+        'recalls': np.array(recalls),
+        'precisions': np.array(precisions),
+        'auc': auc,
+        'f1': best_f1
+    }
+
+def init_descriptor_handler() -> Tuple[Any, Any]:
+    """Initialize descriptor handler once for all methods."""
+    if DESCRIPTOR_METHOD == 'ot':
+        desc_handler = OT_Handler(dist_threshold=3.0, theta_threshold=0.8, verbose=False)
+        feature_extracter = desc_handler.get_extracter(PATH_TO_WEIGHTS)
+        return desc_handler, feature_extracter
+    if DESCRIPTOR_METHOD == 'sc':
+        desc_handler = SC_Handler(downcell_size=0.5, lidar_height=2.0, sector_res=60, ring_res=20, max_length=80, verbose=False)
+        return desc_handler, None
+    raise ValueError('Descriptor method not supported')
+
+def init_dataset_handler() -> Any:
+    """Initialize dataset handler once for all methods."""
+    if DATASET_NAME in ['KITTI', 'SemanticKitti']:
+        return KITTI_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
+    if DATASET_NAME == 'Apollo-SouthBay':
+        return ApolloSouthBay_Handler(path_to_dataset=PATH_TO_DATASET, verbose=True)
+    raise ValueError('Dataset not supported')
+
+def load_dataset_files(dataset_handler) -> Tuple[np.ndarray, str, List[str]]:
+    """Load poses and scan file paths from the dataset."""
+    if DATASET_NAME in ['KITTI', 'SemanticKitti']:
+        seq_path = os.path.join(PATH_TO_DATASET, 'sequences', SEQ)
+        T_cam_velo = dataset_handler.load_calib(os.path.join(PATH_TO_DATASET, 'calib.txt'))
+        poses_cam = dataset_handler.load_poses(os.path.join(seq_path, 'poses', f'{SEQ}.txt'))
+        poses = dataset_handler.project_poses_to_velo(poses_cam, T_cam_velo)
+        scan_dir = os.path.join(seq_path, 'velodyne')
+        scan_files = sorted(os.listdir(scan_dir))
+        return poses, scan_dir, scan_files
+    if DATASET_NAME == 'Apollo-SouthBay':
+        base_path = os.path.join(PATH_TO_DATASET, DATA_TYPE, SEQ, SESSION)
+        poses, _ = dataset_handler.load_poses(os.path.join(base_path, 'poses', 'gt_poses.txt'))
+        scan_dir = os.path.join(base_path, 'pcds')
+        scan_files = sorted(os.listdir(scan_dir), key=lambda x: int(x.split('.')[0]))
+        return poses, scan_dir, scan_files
+    raise ValueError(f'Dataset {DATASET_NAME} not supported')
+
+def build_sampler_context(method_label: str) -> Dict[str, Any]:
+    """Create sampler instance and bookkeeping containers for a method label."""
+    sampling_method = method_label
+    sampler = None
+    if method_label.startswith('fixed_'):
+        sampling_method = 'fixed'
+        fixed_distance = float(method_label.split('_')[1])
+        sampler = FixedDistanceOnline(dist_threshold=fixed_distance)
+    elif method_label == 'entropy':
+        sampler = EntropyOnline(entropy_threshold=0.05, dist_threshold=5.0)
+    elif method_label == 'spaciousness':
+        sampler = SpaciousnessOnline(alpha=0.9, beta=0.1, delta_min=1.0,
+                                     delta_mid=3.0, delta_max=5.0,
+                                     theta_min=3.0, theta_mid=5.0,
+                                     theta_max=10.0, queue_size=10)
+    elif method_label == 'optimized':
+        sampler = RMIP_Online(alpha=ALPHA, beta=BETA, window_size=WINDOW_SIZE, verbose=False)
+    else:
+        raise ValueError(f'Sampling method "{method_label}" not supported. Options: entropy, spaciousness, fixed_X, optimized')
+
+    return {
+        'label': method_label,
+        'sampling_method': sampling_method,
+        'sampler': sampler,
+        'similarities': [],
+        'distances': []
+    }
+
+def query_map(desc_handler, curr_pose: np.ndarray, curr_descriptor: np.ndarray, curr_index: int, ctx: Dict[str, Any], window_keyframes: Keyframes = None) -> None:
+    sampler = ctx['sampler']
+    neighbours = sampler.keyframes._get_neighbours(curr_pose, n=N_CANDIDATES)
+    if window_keyframes is not None:
+        neighbours.extend(window_keyframes._get_neighbours(curr_pose, n=2))
+    descriptors = [k.descriptor for k in neighbours]
+    similarity, index = desc_handler.find_best_candidate(curr_descriptor, descriptors)
+    best_candidate = neighbours[index]
+    if np.abs(curr_index - best_candidate.index) > 10:
+        ctx['similarities'].append(similarity)
+        ctx['distances'].append(np.linalg.norm(curr_pose[:3, 3] - best_candidate.pose[:3, 3]))
+
+def run_sampling_methods(methods: List[str]) -> List[Dict[str, Any]]:
+    desc_handler, feature_extracter = init_descriptor_handler()
+    dataset_handler = init_dataset_handler()
+    poses, scan_dir, scan_files = load_dataset_files(dataset_handler)
+    os.makedirs(PATH_TO_SAVE, exist_ok=True)
+
+    contexts = [build_sampler_context(m) for m in methods]
+    total_frames = min(len(poses), len(scan_files))
+
+    for i in tqdm(range(total_frames), total=total_frames, desc='Sampling keyframes'):
+        pose = poses[i]
+        scan_path = os.path.join(scan_dir, scan_files[i])
+        if DATASET_NAME in ['KITTI', 'SemanticKitti']:
+            raw_scan = np.fromfile(scan_path, dtype=np.float32).reshape(-1, 4)
+            homogeneous_scan = raw_scan[:, 0:3]
+            scan = np.ones((homogeneous_scan.shape[0], homogeneous_scan.shape[1] + 1))
+            scan[:, :-1] = homogeneous_scan
+        else:
+            scan = dataset_handler.load_scan(scan_path)
+
+        if DESCRIPTOR_METHOD == 'ot':
+            descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
+        elif DESCRIPTOR_METHOD == 'sc':
+            descriptor = desc_handler.get_descriptor(scan)
         else:
             raise ValueError('Descriptor method not supported')
-        return None
-    
-    def init_keyframe_selection_methods(self) -> None:
-        ## Initialize the keyframe selection method based on config
-        if self.sampling_method == 'entropy':
-            self.sampler = EntropyOnline(entropy_threshold=0.05, dist_threshold=5.0)
-        elif self.sampling_method == 'spaciousness':
-            self.sampler = SpaciousnessOnline(alpha=0.9, beta=0.1, delta_min=1.0,
-                                             delta_mid=3.0, delta_max=5.0,
-                                             theta_min=3.0, theta_mid=5.0,
-                                             theta_max=10.0, queue_size=10)
-        elif self.sampling_method == 'fixed':
-            self.sampler = FixedDistanceOnline(dist_threshold=self.fixed_distance)
-        elif self.sampling_method == 'optimized':
-            self.sampler = RMIP_Online(n_neighbours=2,
-                                        alpha=ALPHA,
-                                        beta=BETA,
-                                        window_size=WINDOW_SIZE)
-        else:
-            raise ValueError(f'Sampling method "{self.sampling_method}" not supported. '
-                           'Options: entropy, spaciousness, fixed, optimized')
-        return None
-    
-    def init_dataset_handler(self) -> None:
-        ## Initialize the dataset handler
-        if DATASET_NAME in ['KITTI', 'SemanticKitti']:
-            ## Initialize the KITTI/SemanticKITTI handler
-            self.dataset_handler = KITTI_Handler(path_to_dataset=self.path_to_dataset, verbose=True)
-            return None
-        elif DATASET_NAME == 'Apollo-SouthBay':
-            ## Initialize the Apollo-SouthBay handler
-            self.dataset_handler = ApolloSouthBay_Handler(path_to_dataset=self.path_to_dataset, verbose=True)
-            return None
-        else:
-            raise ValueError('Dataset not supported')
-        return None
 
-    def query_map(self, curr_pose:np.ndarray, curr_scan:np.ndarray, curr_descriptor:np.ndarray, curr_index:int, keyframes:Keyframes, window_keyframes:Keyframes=None) -> None:
-        ## Get the nearest neighbours of the current keyframe
-        neighbours = keyframes._get_neighbours(curr_pose, n=N_CANDIDATES)
-        if window_keyframes is not None:
-            window_neighbours = window_keyframes._get_neighbours(curr_pose, n=2)
-            neighbours.extend(window_neighbours)
-        ## Get the descriptors of the neighbours
-        descriptors = [keyframe.descriptor for keyframe in neighbours]
-        ## Get the poses of the neighbours
-        poses = [keyframe.pose for keyframe in neighbours]
-        ## Get the best candidate
-        similarity, index = self.desc_handler.find_best_candidate(curr_descriptor, descriptors)
-        # print(f'Index: {index}')    
-        # print(f'Similarity: {self.similarities[-1]}')
-        ## Get the best candidate
-        best_candidate = neighbours[index]
-        if np.abs(curr_index - best_candidate.index) > 10:
-            self.similarities.append(similarity)
-            ## Get the distance to the best candidate
-            self.distances.append(np.linalg.norm(curr_pose[:3, 3] - best_candidate.pose[:3, 3]))
-            ## Print the index of the best candidate
-            # print(f'Best candidate: {best_candidate.index}')
-            ## Print the distance to the best candidate
-            # print(f'Distance to best candidate: {self.distances[-1]}')
-            ## Return the distance
-        return 
-    
-    def get_metrics(self): 
-        ## Get the Precision and Recall for every pair of similarities and distances
-        precisions = []
-        recalls = []
-        f1 = []
-        thetas = np.arange(0, 100, 1)
-        for theta in thetas:
-            tp = np.sum( (np.array(self.similarities) >= theta/100) & (np.array(self.distances) <= DELTA) )
-            fp = np.sum( (np.array(self.similarities) > theta/100) & (np.array(self.distances) > DELTA) )
-            fn = np.sum( (np.array(self.similarities) < theta/100) & (np.array(self.distances) <= DELTA) )
-            tn = np.sum( (np.array(self.similarities) < theta/100) & (np.array(self.distances) > DELTA) )
-            precision = tp / (tp + fp) if (tp + fp) > 0 else 1
-            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-            f1_score = 2 * (precision * recall) / (precision + recall)
-            precisions.append(precision)
-            recalls.append(recall)
-            f1.append(f1_score)
-        ## Plot the Precision-Recall curve
-        plt.plot(recalls, precisions)
-        plt.xlabel('Recall')
-        plt.ylabel('Precision')
-        plt.title('Precision-Recall curve')
-        plt.savefig('precision_recall_curve.png')
-        ## calculate the area under the curve
-        auc = np.trapz(precisions, recalls)
-        print(f'AUC: {np.round(-auc*100, 2)}%')
-        print(f'F1 score: {np.round(np.max(f1)*100, 2)}%')
-        return 
+        for ctx in contexts:
+            sampler = ctx['sampler']
+            if ctx['sampling_method'] == 'optimized':
+                time = sampler.sample_rmip(pose=pose, scan=scan, descriptor=descriptor, index=i)
+                # print(f'RMIP sampling time per frame: {time:.4f} seconds')
+                if sampler.index > N_CANDIDATES:
+                    query_map(desc_handler, pose, descriptor, i, ctx, sampler.window_keyframes)
+            elif ctx['sampling_method'] in ['entropy', 'spaciousness']:
+                sampler.sample(pose=pose, scan=scan, descriptor=descriptor, index=i)
+                if sampler.index > N_CANDIDATES:
+                    query_map(desc_handler, pose, descriptor, i, ctx)
+            else:  # fixed distance
+                sampler.sample(pose=pose, descriptor=descriptor, index=i)
+                if sampler.index > N_CANDIDATES:
+                    query_map(desc_handler, pose, descriptor, i, ctx)
 
-    def main(self):
-        if DATASET_NAME in ['KITTI', 'SemanticKitti']:
-            ## Prepare KITTI/SemanticKITTI data (stream scans on demand)
-            seq_path = os.path.join(self.path_to_dataset, 'sequences', self.sequence)
-            T_cam_velo = self.dataset_handler.load_calib(os.path.join(self.path_to_dataset, 'calib.txt'))
-            poses_cam = self.dataset_handler.load_poses(os.path.join(seq_path, 'poses', f'{self.sequence}.txt'))
-            poses = self.dataset_handler.project_poses_to_velo(poses_cam, T_cam_velo)
-            scan_dir = os.path.join(seq_path, 'velodyne')
-            scan_files = sorted(os.listdir(scan_dir))
-        elif DATASET_NAME == 'Apollo-SouthBay':
-            ## Prepare Apollo-SouthBay data (stream scans on demand)
-            base_path = os.path.join(self.path_to_dataset, self.data_type, self.sequence, self.session)
-            poses, _ = self.dataset_handler.load_poses(os.path.join(base_path, 'poses', 'gt_poses.txt'))
-            scan_dir = os.path.join(base_path, 'pcds')
-            scan_files = sorted(os.listdir(scan_dir), key=lambda x: int(x.split('.')[0]))
-        else:
-            raise ValueError(f'Dataset {DATASET_NAME} not supported')
+    metrics_list = []
+    for ctx in contexts:
+        metrics = compute_pr_metrics_from_arrays(ctx['similarities'], ctx['distances'], ctx['label'])
+        metrics['num_keyframes'] = len(ctx['sampler'].keyframes)
+        print(f"{ctx['label']} | AUC: {metrics['auc']*100:.2f}% | F1-MAX: {metrics['f1']*100:.2f}% | Keyframes: {metrics['num_keyframes']}/{total_frames}")
+        metrics_list.append(metrics)
+    return metrics_list
 
-        total_frames = min(len(poses), len(scan_files))
+def plot_precision_recall_curves(metrics_list: List[Dict[str, Any]], save_dir: str, filename: str = 'precision_recall_curve.png') -> str:
+    """Plot Precision-Recall curves for all methods on the same figure."""
+    if not metrics_list:
+        raise ValueError('No metrics provided for plotting PR curves.')
 
-        ## Go through the data and sample the keyframes
-        for i in tqdm(range(total_frames), total=total_frames, desc=f'Sampling keyframes ({self.sampling_method})'):
-            ## Get the current pose
-            pose = poses[i]
-            ## Load the current scan on demand
-            scan_path = os.path.join(scan_dir, scan_files[i])
-            if DATASET_NAME in ['KITTI', 'SemanticKitti']:
-                raw_scan = np.fromfile(scan_path, dtype=np.float32).reshape(-1, 4)
-                homogeneous_scan = raw_scan[:, 0:3]
-                scan = np.ones((homogeneous_scan.shape[0], homogeneous_scan.shape[1] + 1))
-                scan[:, :-1] = homogeneous_scan
-            else:  # Apollo-SouthBay
-                scan = self.dataset_handler.load_scan(scan_path)
+    os.makedirs(save_dir, exist_ok=True)
+    plt.figure()
+    for metrics in metrics_list:
+        label = f"{metrics['method']} (AUC: {metrics['auc']*100:.2f}%, F1: {metrics['f1']*100:.2f}%)"
+        plt.plot(metrics['recalls'], metrics['precisions'], label=label)
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title('Precision-Recall curves')
+    plt.grid(True)
+    plt.legend()
+    output_path = os.path.join(save_dir, filename)
+    plt.savefig(output_path)
+    plt.close()
+    return output_path
 
-            ## Get descriptor
-            if self.descriptor_method == 'ot':
-                descriptor = self.desc_handler.get_descriptor(scan, self.feature_extracter)
-                descriptor = descriptor.reshape(-1)
-            elif self.descriptor_method == 'sc':
-                descriptor = self.desc_handler.get_descriptor(scan)
-            
-            ## Sample keyframe with the selected method
-            if self.sampling_method == 'optimized':
-                timer = self.sampler.sample_rmip(pose=pose, scan=scan, descriptor=descriptor, index=i)
-                if self.sampler.index > N_CANDIDATES:
-                    self.query_map(pose, scan, descriptor, i, self.sampler.keyframes, self.sampler.window_keyframes)
-            elif self.sampling_method in ['entropy', 'spaciousness']:
-                self.sampler.sample(pose=pose, scan=scan, descriptor=descriptor, index=i)
-                if self.sampler.index > N_CANDIDATES:
-                    self.query_map(pose, scan, descriptor, i, self.sampler.keyframes)
-            else:  # fixed distance methods
-                self.sampler.sample(pose=pose, descriptor=descriptor, index=i)
-                if self.sampler.index > N_CANDIDATES:
-                    self.query_map(pose, scan, descriptor, i, self.sampler.keyframes)
-        
-        ## Print the results
-        print(f'{self.sampling_method.capitalize()}: {self.sampler.keyframes}')
-        self.get_metrics()
-            
+def methods_to_list(methods_cfg: Any) -> List[str]:
+    """Normalize the method config entry to a list of strings."""
+    if isinstance(methods_cfg, (list, tuple)):
+        return list(methods_cfg)
+    if isinstance(methods_cfg, str):
+        return [methods_cfg]
+    raise ValueError('`method` in config must be a string or list of strings.')
+
 
 if __name__ == '__main__':
-    ## Initialize the evaluation
-    evaluation = EvaluateOnline(path_to_dataset=PATH_TO_DATASET,
-                                session=SESSION,
-                                sequence=SEQ,
-                                descriptor_method=DESCRIPTOR_METHOD,
-                                sampling_method=METHOD,
-                                data_type=DATA_TYPE,
-                                path_to_weights=PATH_TO_WEIGHTS)
-    ## Run the evaluation
-    evaluation.main()
+    method_list = methods_to_list(METHODS)
+    metrics_list = run_sampling_methods(method_list)
+    pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=f'pr_curve_{DATASET_NAME}_{SEQ}.png')
+    print(f'Precision-Recall plot saved to: {pr_curve_path}')

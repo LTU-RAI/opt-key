@@ -17,10 +17,10 @@ weights_path: '/home/niksta/python_projects/opt-key/optkey_utils/descriptors/Ove
 ## Path to save results
 save_path: /home/niksta/python_projects/opt-key/results
 
-## Sampling method to evaluate -> str
+## Sampling methods to evaluate -> str or list[str]
 ## Options: 'entropy', 'spaciousness', 'fixed_0.1', 'fixed_1', 'fixed_3', 'optimized'
-## For 'fixed_X', X is the fixed distance threshold in meters
-method: 'optimized'
+## For 'fixed_X', X is the fixed distance threshold in meters; multiple entries will be run and compared
+method: ['fixed_2','optimized']
 
 ## Place recognition parameters
 ## Distance to classify as a true positive -> float
