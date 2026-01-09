@@ -1,8 +1,5 @@
 /optkey_utils/descriptors
 *.pdf
-*.png
-*.jpg
 *.pyc
-*.json
 *.pcd
 *.npy
