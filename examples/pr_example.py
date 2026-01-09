@@ -395,8 +395,8 @@ def plot_precision_recall_curves(metrics_list: List[Dict[str, Any]], save_dir: s
     total_frames = metrics_list[0].get('total_frames', None) or max(keyframes_counts + [1])
     percents = [100.0 * c / float(total_frames) for c in keyframes_counts]
     bars = ax_bar.bar(methods, percents, color='C0', alpha=0.8)
-    ax_bar.set_ylabel('Keyframes kept (%)')
-    ax_bar.set_title('Keyframes per method')
+    ax_bar.set_ylabel('Sampled Keyframes (%)')
+    ax_bar.set_title('Memory Usage')
     ax_bar.grid(True, axis='y', linestyle='--', alpha=0.3)
     ax_bar.set_ylim(0, max(percents + [100]))
     ax_bar.set_xticklabels(methods, rotation=45, ha='right')
@@ -502,7 +502,7 @@ if __name__ == '__main__':
     method_list = methods_to_list(METHODS)
     metrics_list = run_sampling_methods(method_list, live=args.live)
     if 'kitti' in DATASET_NAME.lower():
-        filename = f'pr_curve_{DATASET_NAME}_seq{SEQ}.png'
+        filename = f'pr_curve_{DATASET_NAME}_{SEQ}.png'
     else:
         filename = f'pr_curve_{DATASET_NAME}_{SEQ}_{SESSION}.png'
     pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=filename)
