@@ -318,11 +318,11 @@ class RMIP_Online:
             if self.verbose:
                 print(f'Optimizing window')
             ## Get the optimal subset from the latest window
-            tic = time.time()
+            tec = time.time()
             optimal_subset = self.optimize_objective(method='adaptive')
-            toc = time.time()
+            tac = time.time()
             if self.verbose:
-                print(f'Optimization time: {np.round(toc - tic, 4)} seconds')
+                print(f'Optimization time: {np.round(tac - tec, 4)} seconds')
                 print(f'Optimal subset indexes: {optimal_subset}')
             ## Add the optimal subset to the keyframes except the first one
             for i in optimal_subset[1:]:
