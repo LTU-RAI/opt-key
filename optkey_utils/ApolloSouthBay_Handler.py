@@ -85,7 +85,7 @@ class ApolloSouthBay_Handler:
         ## Return the pointclouds, poses, depth maps, and calibration data
         return poses, scans, timestamps
 
-    ## Load the KITTI ground truth poses.
+    ## Load the Apollo-SouthBay ground truth poses.
     def load_poses(self, pose_path:str) -> np.ndarray:
         """ Load ground truth poses .txt from file.
             Args:
@@ -187,7 +187,7 @@ class ApolloSouthBay_Handler:
         ## Return the pointcloud
         return curr_scan
 
-    ## Visulize the KITTI ground truth poses.
+    ## Visulize the Apollo-SouthBay ground truth poses.
     def visualize_poses(self, poses:np.ndarray, poses2:np.ndarray=None, save:bool=False) -> None:
         """ Visualize the ground truth poses using matplotlib.
             Args:
@@ -203,7 +203,7 @@ class ApolloSouthBay_Handler:
         ax.set_xlabel('X [m]')
         ax.set_ylabel('Y [m]')
         ## Set the title
-        ax.set_title('KITTI ground truth poses')
+        ax.set_title('Apollo-SouthBay ground truth poses')
         ## Add grid
         # plt.grid(alpha=0.5, linestyle='--', linewidth=1.0)
         if poses2 is not None:
@@ -220,9 +220,9 @@ class ApolloSouthBay_Handler:
         plt.show()
         return
 
-    ## Visualize a KITTI scan.
+    ## Visualize a Apollo-SouthBay scan.
     def plot_scan(self, scan:np.ndarray, save:bool=False) -> None:
-        """ Visualize a KITTI scan using matplotlib.
+        """ Visualize a Apollo-SouthBay scan using matplotlib.
             Args:
                 scan: A numpy array of size nx4 with n points as 3D points with homogeneous coordinates.
             Returns:
@@ -236,7 +236,7 @@ class ApolloSouthBay_Handler:
         ax.set_xlabel('X [m]')
         ax.set_ylabel('Y [m]')
         ## Set the title
-        ax.set_title('KITTI scan')
+        ax.set_title('Apollo-SouthBay scan')
         ## Add grid
         plt.grid(alpha=0.5, linestyle='--', linewidth=1.0)
         ## Add limit
