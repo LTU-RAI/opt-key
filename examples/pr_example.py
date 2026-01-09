@@ -180,12 +180,12 @@ def build_sampler_context(method_label: str) -> Dict[str, Any]:
     elif method_label == 'entropy':
         sampler = EntropyOnline(entropy_threshold=0.05, dist_threshold=5.0)
     elif method_label == 'spaciousness':
-        sampler = SpaciousnessOnline(alpha=0.9, beta=0.1, delta_min=1.0,
-                                     delta_mid=3.0, delta_max=5.0,
+        sampler = SpaciousnessOnline(alpha=0.85, beta=0.15, delta_min=1.0,
+                                     delta_mid=2.0, delta_max=3.0,
                                      theta_min=3.0, theta_mid=5.0,
                                      theta_max=10.0, queue_size=10)
     elif method_label == 'optimized':
-        sampler = RMIP_Online(alpha=ALPHA, beta=BETA, window_size=WINDOW_SIZE, verbose=False)
+        sampler = RMIP_Online(n_neighbours=2, alpha=ALPHA, beta=BETA, window_size=WINDOW_SIZE, verbose=False)
     else:
         raise ValueError(f'Sampling method "{method_label}" not supported. Options: entropy, spaciousness, fixed_X, optimized')
 
