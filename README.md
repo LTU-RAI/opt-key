@@ -56,14 +56,13 @@ cd opt-key
 
 ### Environment Setup
 
-Using a virtual environment is strongly recommended. You can use any virtual environment manager you prefer.
+Using a virtual environment is recommended but no required. You can use any virtual environment manager you prefer.
 
 #### Using Conda (Recommended)
 
 ```bash
 conda create -n opt-key
 conda activate opt-key
-pip install -r requirements.txt
 ```
 
 #### Using pip with venv
@@ -71,8 +70,9 @@ pip install -r requirements.txt
 ```bash
 python -m venv opt-key-env
 source opt-key-env/bin/activate  
-pip install -r requirements.txt
 ```
+
+There are no additional packages needed.
 
 ### Dataset Setup
 
