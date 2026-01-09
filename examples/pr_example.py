@@ -520,8 +520,8 @@ if __name__ == '__main__':
     method_list = methods_to_list(METHODS)
     metrics_list = run_sampling_methods(method_list, live=args.live)
     if 'kitti' in DATASET_NAME.lower():
-        filename = f'pr_curve_{DATASET_NAME}_{SEQ}.png'
+        filename = f'pr_curve_{DATASET_NAME}_{SEQ}_{DESCRIPTOR_METHOD}.png'
     else:
-        filename = f'pr_curve_{DATASET_NAME}_{SEQ}_{SESSION}.png'
+        filename = f'pr_curve_{DATASET_NAME}_{SEQ}_{SESSION}_{DESCRIPTOR_METHOD}.png'
     pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=filename)
     print(f'Precision-Recall plot saved to: {pr_curve_path}')
