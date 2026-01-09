@@ -1,3 +1,4 @@
+import argparse
 import yaml, sys, os
 import numpy as np
 from tqdm import tqdm
@@ -17,39 +18,60 @@ from optkey_utils.descriptors.OverlapTransformer.modules.overlap_transformer imp
 from optkey_utils.descriptors.OverlapTransformer.tools.overlap_utils.overlap_utils import *
 
 
-## Path to config file
-path_to_config = '/home/niksta/python_projects/opt-key/config/dataset_config.yaml'
-## Load the config file
-with open(path_to_config) as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
-## Define the dataset
-DATASET_CFG = config['dataset']
-DATASET_NAME = DATASET_CFG['name']
-## Path to the dataset
-PATH = config['dataset_path']
-## Dataset sequence (single string)
-SEQ = DATASET_CFG['sequence']
-## Additional dataset info (used for Apollo-SouthBay)
-SESSION = DATASET_CFG.get('session')
-DATA_TYPE = DATASET_CFG.get('data_type', 'MapData')
-## Path to dataset
-PATH_TO_DATASET = os.path.join(PATH, DATASET_NAME)
-## Define descriptor method
-DESCRIPTOR_METHOD = config['descriptor']
-## PATH TO WEIGHTS
-PATH_TO_WEIGHTS = config['weights_path']
-## PATH TO SAVE RESULTS
-PATH_TO_SAVE = config['save_path']
-## Optimization parameters
-ALPHA = config['alpha']
-BETA = config['beta']
-WINDOW_SIZE = config['window_size']
-## Sampling methods to evaluate (can be a single string or a list)
-METHODS = config['method']
-## Distance to classify as a true positive
-DELTA = config['delta']
-## Number of candidates to query
-N_CANDIDATES = config['n_candidates']
+## Default path to config file (can be overridden via CLI)
+DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '../config/dataset_config.yaml')
+
+## Globals populated by load_config()
+config: Dict[str, Any] = {}
+DATASET_CFG: Dict[str, Any] = {}
+DATASET_NAME: str = ''
+PATH: str = ''
+SEQ: str = ''
+SESSION: str = ''
+DATA_TYPE: str = 'MapData'
+PATH_TO_DATASET: str = ''
+DESCRIPTOR_METHOD: str = ''
+PATH_TO_WEIGHTS: str = ''
+PATH_TO_SAVE: str = ''
+ALPHA: float = 1.0
+BETA: float = 1.0
+WINDOW_SIZE: int = 10
+METHODS: Any = []
+DELTA: float = 3.0
+N_CANDIDATES: int = 10
+path_to_config: str = DEFAULT_CONFIG_PATH
+
+
+def load_config(cfg_path: str) -> None:
+    """Load YAML config and populate module-level settings."""
+    global config, DATASET_CFG, DATASET_NAME, PATH, SEQ, SESSION, DATA_TYPE
+    global PATH_TO_DATASET, DESCRIPTOR_METHOD, PATH_TO_WEIGHTS, PATH_TO_SAVE
+    global ALPHA, BETA, WINDOW_SIZE, METHODS, DELTA, N_CANDIDATES, path_to_config
+
+    path_to_config = cfg_path
+    with open(path_to_config) as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+
+    DATASET_CFG = config['dataset']
+    DATASET_NAME = DATASET_CFG['name']
+    PATH = config['dataset_path']
+    SEQ = DATASET_CFG['sequence']
+    SESSION = DATASET_CFG.get('session')
+    DATA_TYPE = DATASET_CFG.get('data_type', 'MapData')
+    PATH_TO_DATASET = os.path.join(PATH, DATASET_NAME)
+    DESCRIPTOR_METHOD = config['descriptor']
+    PATH_TO_WEIGHTS = config['weights_path']
+    PATH_TO_SAVE = config['save_path']
+    ALPHA = config['alpha']
+    BETA = config['beta']
+    WINDOW_SIZE = config['window_size']
+    METHODS = config['method']
+    DELTA = config['delta']
+    N_CANDIDATES = config['n_candidates']
+
+
+# Load default config on import; may be overridden via CLI in __main__
+load_config(DEFAULT_CONFIG_PATH)
 
 
 def compute_pr_metrics_from_arrays(similarities: List[float], distances: List[float], method_label: str) -> Dict[str, Any]:
@@ -241,6 +263,12 @@ def methods_to_list(methods_cfg: Any) -> List[str]:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Evaluate keyframe sampling methods.')
+    parser.add_argument('-c', '--config', default=path_to_config, help='Path to dataset_config.yaml')
+    args = parser.parse_args()
+
+    load_config(args.config)
+
     method_list = methods_to_list(METHODS)
     metrics_list = run_sampling_methods(method_list)
     pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=f'pr_curve_{DATASET_NAME}_{SEQ}.png')
