@@ -158,7 +158,7 @@ def build_sampler_context(method_label: str) -> Dict[str, Any]:
                                      theta_min=3.0, theta_mid=5.0,
                                      theta_max=10.0, queue_size=10)
     elif method_label == 'optimized':
-        sampler = RMIP_Online(alpha=ALPHA, beta=BETA, window_size=WINDOW_SIZE, verbose=False)
+        sampler = RMIP_Online(n_neighbours=2, alpha=ALPHA, beta=BETA, window_size=WINDOW_SIZE, verbose=False)
     else:
         raise ValueError(f'Sampling method "{method_label}" not supported. Options: entropy, spaciousness, fixed_X, optimized')
 
@@ -182,7 +182,7 @@ def query_map(desc_handler, curr_pose: np.ndarray, curr_descriptor: np.ndarray, 
         ctx['similarities'].append(similarity)
         ctx['distances'].append(np.linalg.norm(curr_pose[:3, 3] - best_candidate.pose[:3, 3]))
 
-def run_sampling_methods(methods: List[str]) -> List[Dict[str, Any]]:
+def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[str, Any]]:
     desc_handler, feature_extracter = init_descriptor_handler()
     dataset_handler = init_dataset_handler()
     poses, scan_dir, scan_files = load_dataset_files(dataset_handler)
@@ -191,39 +191,159 @@ def run_sampling_methods(methods: List[str]) -> List[Dict[str, Any]]:
     contexts = [build_sampler_context(m) for m in methods]
     total_frames = min(len(poses), len(scan_files))
 
-    for i in tqdm(range(total_frames), total=total_frames, desc='Sampling keyframes'):
-        pose = poses[i]
-        scan_path = os.path.join(scan_dir, scan_files[i])
-        if DATASET_NAME in ['KITTI', 'SemanticKitti']:
-            raw_scan = np.fromfile(scan_path, dtype=np.float32).reshape(-1, 4)
-            homogeneous_scan = raw_scan[:, 0:3]
-            scan = np.ones((homogeneous_scan.shape[0], homogeneous_scan.shape[1] + 1))
-            scan[:, :-1] = homogeneous_scan
+    live_ctx = None
+    fig = ax = handles = None
+    seen_optimization_events = 0
+    optimized_window_snapshot = np.empty((0, 2))
+    optimized_selected_xy = np.empty((0, 2))
+    last_kept_xy = np.empty((0, 2))
+    trajectory_xy = np.empty((0, 2))
+    if live:
+        live_ctx = next((c for c in contexts if c['sampling_method'] == 'optimized'), None)
+        if live_ctx is not None:
+            fig, ax, handles = create_live_plot()
         else:
-            scan = dataset_handler.load_scan(scan_path)
+            live = False
 
-        if DESCRIPTOR_METHOD == 'ot':
-            descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
-        elif DESCRIPTOR_METHOD == 'sc':
-            descriptor = desc_handler.get_descriptor(scan)
-        else:
-            raise ValueError('Descriptor method not supported')
+    if live and live_ctx is not None and handles is not None:
+        controls = {'paused': False, 'step': 0}
 
-        for ctx in contexts:
-            sampler = ctx['sampler']
-            if ctx['sampling_method'] == 'optimized':
-                time = sampler.sample_rmip(pose=pose, scan=scan, descriptor=descriptor, index=i)
-                # print(f'RMIP sampling time per frame: {time:.4f} seconds')
-                if sampler.index > N_CANDIDATES:
-                    query_map(desc_handler, pose, descriptor, i, ctx, sampler.window_keyframes)
-            elif ctx['sampling_method'] in ['entropy', 'spaciousness']:
-                sampler.sample(pose=pose, scan=scan, descriptor=descriptor, index=i)
-                if sampler.index > N_CANDIDATES:
-                    query_map(desc_handler, pose, descriptor, i, ctx)
-            else:  # fixed distance
-                sampler.sample(pose=pose, descriptor=descriptor, index=i)
-                if sampler.index > N_CANDIDATES:
-                    query_map(desc_handler, pose, descriptor, i, ctx)
+        def on_key(event):
+            key = (event.key or '').lower()
+            if key == 'p':
+                controls['paused'] = not controls['paused']
+            elif key == 'right':
+                controls['paused'] = True
+                controls['step'] += 1
+            elif key == 'left':
+                controls['paused'] = True
+                controls['step'] = max(controls['step'] - 1, 0)  # backward not supported; keep non-negative
+
+        fig.canvas.mpl_connect('key_press_event', on_key)
+
+        idx = 0
+        pbar = tqdm(total=total_frames, desc='Sampling keyframes')
+        while idx < total_frames:
+            if controls['paused'] and controls['step'] == 0:
+                plt.pause(0.05)
+                continue
+
+            pose = poses[idx]
+            scan_path = os.path.join(scan_dir, scan_files[idx])
+            if DATASET_NAME in ['KITTI', 'SemanticKitti']:
+                raw_scan = np.fromfile(scan_path, dtype=np.float32).reshape(-1, 4)
+                homogeneous_scan = raw_scan[:, 0:3]
+                scan = np.ones((homogeneous_scan.shape[0], homogeneous_scan.shape[1] + 1))
+                scan[:, :-1] = homogeneous_scan
+            else:
+                scan = dataset_handler.load_scan(scan_path)
+
+            if DESCRIPTOR_METHOD == 'ot':
+                descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
+            elif DESCRIPTOR_METHOD == 'sc':
+                descriptor = desc_handler.get_descriptor(scan)
+            else:
+                raise ValueError('Descriptor method not supported')
+
+            for ctx in contexts:
+                sampler = ctx['sampler']
+                if ctx['sampling_method'] == 'optimized':
+                    time = sampler.sample_rmip(pose=pose, scan=scan, descriptor=descriptor, index=idx)
+                    if sampler.index > N_CANDIDATES:
+                        query_map(desc_handler, pose, descriptor, idx, ctx, sampler.window_keyframes)
+                elif ctx['sampling_method'] in ['entropy', 'spaciousness']:
+                    sampler.sample(pose=pose, scan=scan, descriptor=descriptor, index=idx)
+                    if sampler.index > N_CANDIDATES:
+                        query_map(desc_handler, pose, descriptor, idx, ctx)
+                else:  # fixed distance
+                    sampler.sample(pose=pose, descriptor=descriptor, index=idx)
+                    if sampler.index > N_CANDIDATES:
+                        query_map(desc_handler, pose, descriptor, idx, ctx)
+
+            # Transform scan to global coordinates using current pose
+            scan_h = np.ones((scan.shape[0], 4))
+            scan_h[:, :3] = scan[:, :3]
+            scan_global = (pose @ scan_h.T).T
+            scan_xy = scan_global[:, :2]
+            if len(scan_xy) > 8000:
+                scan_xy = scan_xy[::4]
+
+            window_xy = np.array([kf.pose[:2, 3] for kf in live_ctx['sampler'].window_keyframes]) if len(live_ctx['sampler'].window_keyframes) else np.empty((0, 2))
+
+            sampler = live_ctx['sampler']
+
+            # Snapshot optimized window when an optimization event occurs
+            if hasattr(sampler, 'optimization_events') and sampler.optimization_events > seen_optimization_events:
+                seen_optimization_events = sampler.optimization_events
+                if getattr(sampler, 'last_optimized_window_poses', None):
+                    optimized_window_snapshot = np.array([
+                        pose[:2, 3] for pose in sampler.last_optimized_window_poses
+                    ]) if sampler.last_optimized_window_poses else np.empty((0, 2))
+                if getattr(sampler, 'last_optimized_selected_pose', None) is not None:
+                    pose_sel = sampler.last_optimized_selected_pose
+                    optimized_selected_xy = np.array([[pose_sel[0, 3], pose_sel[1, 3]]])
+
+            # Update last kept keyframe (latest in sampler.keyframes)
+            if len(sampler.keyframes.keyframes) > 0:
+                last_kf_pose = sampler.keyframes.keyframes[-1].pose
+                last_kept_xy = np.array([[last_kf_pose[0, 3], last_kf_pose[1, 3]]])
+                trajectory_xy = np.array([[kf.pose[0, 3], kf.pose[1, 3]] for kf in sampler.keyframes.keyframes])
+            else:
+                last_kept_xy = np.empty((0, 2))
+                trajectory_xy = np.empty((0, 2))
+
+            update_live_plot(
+                ax,
+                handles,
+                scan_xy,
+                window_xy,
+                optimized_window_snapshot,
+                optimized_selected_xy,
+                last_kept_xy,
+                trajectory_xy,
+                current_pose_xy=(pose[0, 3], pose[1, 3]),
+            )
+
+            idx += 1
+            pbar.update(1)
+            if controls['step'] > 0:
+                controls['step'] -= 1
+                controls['paused'] = True
+
+        pbar.close()
+    else:
+        for i in tqdm(range(total_frames), total=total_frames, desc='Sampling keyframes'):
+            pose = poses[i]
+            scan_path = os.path.join(scan_dir, scan_files[i])
+            if DATASET_NAME in ['KITTI', 'SemanticKitti']:
+                raw_scan = np.fromfile(scan_path, dtype=np.float32).reshape(-1, 4)
+                homogeneous_scan = raw_scan[:, 0:3]
+                scan = np.ones((homogeneous_scan.shape[0], homogeneous_scan.shape[1] + 1))
+                scan[:, :-1] = homogeneous_scan
+            else:
+                scan = dataset_handler.load_scan(scan_path)
+
+            if DESCRIPTOR_METHOD == 'ot':
+                descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
+            elif DESCRIPTOR_METHOD == 'sc':
+                descriptor = desc_handler.get_descriptor(scan)
+            else:
+                raise ValueError('Descriptor method not supported')
+
+            for ctx in contexts:
+                sampler = ctx['sampler']
+                if ctx['sampling_method'] == 'optimized':
+                    time = sampler.sample_rmip(pose=pose, scan=scan, descriptor=descriptor, index=i)
+                    if sampler.index > N_CANDIDATES:
+                        query_map(desc_handler, pose, descriptor, i, ctx, sampler.window_keyframes)
+                elif ctx['sampling_method'] in ['entropy', 'spaciousness']:
+                    sampler.sample(pose=pose, scan=scan, descriptor=descriptor, index=i)
+                    if sampler.index > N_CANDIDATES:
+                        query_map(desc_handler, pose, descriptor, i, ctx)
+                else:  # fixed distance
+                    sampler.sample(pose=pose, descriptor=descriptor, index=i)
+                    if sampler.index > N_CANDIDATES:
+                        query_map(desc_handler, pose, descriptor, i, ctx)
 
     metrics_list = []
     for ctx in contexts:
@@ -262,14 +382,64 @@ def methods_to_list(methods_cfg: Any) -> List[str]:
     raise ValueError('`method` in config must be a string or list of strings.')
 
 
+def create_live_plot():
+    """Initialize live matplotlib plot for top-view visualization."""
+    plt.ion()
+    fig, ax = plt.subplots()
+    ax.set_title('Top-View Live Visualization (MSA Sampling)')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_aspect('equal', adjustable='datalim')
+    scan_scatter = ax.scatter([], [], s=2, c='gray', alpha=0.35, label='Scan')
+    optimized_window_scatter = ax.scatter([], [], s=40, c='k', marker='o', linewidths=1.0, edgecolors='k', label='Prev. Window')
+    traj_scatter = ax.scatter([], [], s=40, c='C0', marker='o', linewidths=1.0, edgecolors='k', label='Registered KFs')
+    window_scatter = ax.scatter([], [], s=40, c='C1', marker='o', linewidths=1.0, edgecolors='k', label='Cur. Window KFs')
+    selected_scatter = ax.scatter([], [], s=40, c='red', marker='o', linewidths=1.0, edgecolors='k', label='Optimized KF')
+    ax.legend(loc='upper right')
+    return fig, ax, {
+        'scan': scan_scatter,
+        'window': window_scatter,
+        'optimized_window': optimized_window_scatter,
+        'selected': selected_scatter,
+        'traj': traj_scatter,
+    }
+
+
+def update_live_plot(
+    ax,
+    handles,
+    scan_xy: np.ndarray,
+    window_xy: np.ndarray,
+    optimized_window_xy: np.ndarray,
+    optimized_selected_xy: np.ndarray,
+    last_kept_xy: np.ndarray,
+    trajectory_xy: np.ndarray,
+    current_pose_xy: Tuple[float, float],
+) -> None:
+    """Update live plot elements and keep view centered on current pose."""
+    handles['scan'].set_offsets(scan_xy if scan_xy.size else np.empty((0, 2)))
+    handles['window'].set_offsets(window_xy if window_xy.size else np.empty((0, 2)))
+    handles['optimized_window'].set_offsets(optimized_window_xy if optimized_window_xy.size else np.empty((0, 2)))
+    handles['selected'].set_offsets(optimized_selected_xy if optimized_selected_xy.size else np.empty((0, 2)))
+    handles['traj'].set_offsets(trajectory_xy if trajectory_xy.size else np.empty((0, 2)))
+    ax.relim()
+    ax.autoscale_view()
+    view_span = 80.0
+    cx, cy = current_pose_xy
+    ax.set_xlim(cx - view_span, cx + view_span)
+    ax.set_ylim(cy - view_span, cy + view_span)
+    plt.pause(0.001)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate keyframe sampling methods.')
     parser.add_argument('-c', '--config', default=path_to_config, help='Path to dataset_config.yaml')
+    parser.add_argument('--live', action='store_true', help='Enable live top-view visualization (optimized only)')
     args = parser.parse_args()
 
     load_config(args.config)
 
     method_list = methods_to_list(METHODS)
-    metrics_list = run_sampling_methods(method_list)
+    metrics_list = run_sampling_methods(method_list, live=args.live)
     pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=f'pr_curve_{DATASET_NAME}_{SEQ}.png')
     print(f'Precision-Recall plot saved to: {pr_curve_path}')

@@ -48,6 +48,12 @@ class RMIP_Online:
         self.index = 0
         self.window_index = 0
         self.global_avg_distance = 0.0
+        self.last_optimal_subset = []  # store last chosen subset (global indices)
+        self.last_optimized_selected_index = None  # global index of last chosen KF
+        self.last_optimized_window_indices: List[int] = []  # snapshot of window indices when optimized
+        self.last_optimized_window_poses: List[np.ndarray] = []  # snapshot of window poses when optimized
+        self.last_optimized_selected_pose: np.ndarray = None
+        self.optimization_events = 0  # increments each time optimize triggers
 
     ## Calculate the average distance between poses in the window.
     def average_distance(self, poses:np.ndarray) -> float:
@@ -324,6 +330,12 @@ class RMIP_Online:
             if self.verbose:
                 print(f'Optimization time: {np.round(tac - tec, 4)} seconds')
                 print(f'Optimal subset indexes: {optimal_subset}')
+            self.last_optimal_subset = [self.window_keyframes[i].index for i in optimal_subset]
+            self.last_optimized_window_indices = [kf.index for kf in self.window_keyframes]
+            self.last_optimized_window_poses = [kf.pose for kf in self.window_keyframes]
+            self.last_optimized_selected_index = self.window_keyframes[optimal_subset[-1]].index
+            self.last_optimized_selected_pose = self.window_keyframes[optimal_subset[-1]].pose
+            self.optimization_events += 1
             ## Add the optimal subset to the keyframes except the first one
             for i in optimal_subset[1:]:
                 # print(f'Optimal subset index to add: {i}')
@@ -337,6 +349,9 @@ class RMIP_Online:
                 self.window_keyframes._delete(0)
             self.window_index = len(self.window_keyframes) - 1
             self.index = len(self.keyframes) - 1        
+            if len(self.keyframes) > 0:
+                self.last_optimized_selected_index = self.keyframes[-1].index
+                self.last_optimized_selected_pose = self.keyframes[-1].pose
             if self.verbose:
                 print(f'Window keyframes after optimization: {self.window_keyframes}')
                 print(f'New window index: {self.window_index}')
