@@ -102,6 +102,8 @@ In the /optkey_utils/descriptors install the descriptor you want to use followin
 
 If you want to test with another descriptor you need to make the handler similar to OT_Handler.py and SC_Handler.py following the DescriptorHandler.py template. Basically you need to specify the descriptor extraction process and the similarity/distance function.
 
+---
+
 ## 🕹️ Run the Examples
 
 An example script is provided:
@@ -159,11 +161,15 @@ Key controls:
 
 **Note:** Running without visualization is significantly faster for batch evaluation.
 
+---
+
 ## 🔜 Coming Soon
 
 TODO:
 - Add example with iSAM2 PGO.
 - Add ROS2 wrapper.
+
+---
 
 ## 📝 Citation
 
