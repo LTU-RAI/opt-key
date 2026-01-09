@@ -1,8 +1,8 @@
 ## Path to dataset
 dataset_path: '/home/niksta/Documents/datasets_2'
-## Dataset to be used: SemanticKitti (or just KITTI), ApolloSouth-Bay
+## Dataset to be used: SemanticKitti (or just KITTI), 'ApolloSouth-Bay', 'MulRan', NewerCollege
 dataset: 
-  name: 'SemanticKitti' # 'SemanticKitti', 'KITTI', 'ApolloSouth-Bay', 'MulRan'
+  name: 'SemanticKitti' 
   sequence: '05'
   ## '00', '05', '06' ... for SemanticKITTI/KITTI or 
   ## 'ColumbiaPark', 'SanJoseDowntown', 'SunnyvaleBigloop' ... for ApolloSouth-Bay
