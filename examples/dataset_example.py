@@ -366,6 +366,7 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
     for ctx in contexts:
         metrics = compute_pr_metrics_from_arrays(ctx['similarities'], ctx['distances'], ctx['label'])
         metrics['num_keyframes'] = len(ctx['sampler'].keyframes)
+        metrics['total_frames'] = total_frames
         print(f"{ctx['label']} | AUC: {metrics['auc']*100:.2f}% | F1-MAX: {metrics['f1']*100:.2f}% | Keyframes: {metrics['num_keyframes']}/{total_frames}")
         metrics_list.append(metrics)
     return metrics_list
@@ -391,12 +392,16 @@ def plot_precision_recall_curves(metrics_list: List[Dict[str, Any]], save_dir: s
     # Keyframes comparison bar chart
     methods = [m['method'] for m in metrics_list]
     keyframes_counts = [m.get('num_keyframes', 0) for m in metrics_list]
-    bars = ax_bar.bar(methods, keyframes_counts, color='C0', alpha=0.8)
-    ax_bar.set_ylabel('Keyframes kept')
+    total_frames = metrics_list[0].get('total_frames', None) or max(keyframes_counts + [1])
+    percents = [100.0 * c / float(total_frames) for c in keyframes_counts]
+    bars = ax_bar.bar(methods, percents, color='C0', alpha=0.8)
+    ax_bar.set_ylabel('Keyframes kept (%)')
     ax_bar.set_title('Keyframes per method')
     ax_bar.grid(True, axis='y', linestyle='--', alpha=0.3)
-    for bar, count in zip(bars, keyframes_counts):
-        ax_bar.text(bar.get_x() + bar.get_width() / 2.0, count + max(1, 0.01 * max(keyframes_counts, default=1)), f'{count}', ha='center', va='bottom', fontsize=9)
+    ax_bar.set_ylim(0, max(percents + [100]))
+    ax_bar.set_xticklabels(methods, rotation=45, ha='right')
+    for bar, count, pct in zip(bars, keyframes_counts, percents):
+        ax_bar.text(bar.get_x() + bar.get_width() / 2.0, pct + max(0.5, 0.01 * max(percents, default=1)), f'{count}', ha='center', va='bottom', fontsize=9, rotation=0)
 
     fig.tight_layout()
     output_path = os.path.join(save_dir, filename)
@@ -496,5 +501,9 @@ if __name__ == '__main__':
 
     method_list = methods_to_list(METHODS)
     metrics_list = run_sampling_methods(method_list, live=args.live)
-    pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=f'pr_curve_{DATASET_NAME}_{SEQ}_{SESSION}.png')
+    if 'kitti' in DATASET_NAME.lower():
+        filename = f'pr_curve_{DATASET_NAME}_seq{SEQ}.png'
+    else:
+        filename = f'pr_curve_{DATASET_NAME}_{SEQ}_{SESSION}.png'
+    pr_curve_path = plot_precision_recall_curves(metrics_list, PATH_TO_SAVE, filename=filename)
     print(f'Precision-Recall plot saved to: {pr_curve_path}')
