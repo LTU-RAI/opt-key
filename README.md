@@ -142,7 +142,7 @@ Options:
 
 After completion, results are printed to console and saved as a plot in your configured output directory (default: `/results/`). Example output from KITTI sequence 00:
 
-<p align=center> <img src="/results/pr_curve_SemanticKitti_00_ot.png" width="50%" height="50%"/> </p>
+<p align=center> <img src="/results/pr_curve_SemanticKitti_00_ot.png" width="75%" height="75%"/> </p>
 
 ### Live Visualization
 
@@ -151,7 +151,7 @@ Enable real-time visualization of the sampling process:
 ```bash
 python3 examples/pr_example.py --live
 ```
-<p align=center> <img src="/figures/kitti_00_msa_example.gif" width="50%" height="50%"/> </p>
+<p align=center> <img src="/figures/kitti_00_msa_example.gif" width="75%" height="75%"/> </p>
 
 Key controls:
 - **Space bar** — Pause/resume playback
