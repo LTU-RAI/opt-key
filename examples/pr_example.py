@@ -97,7 +97,8 @@ def compute_pr_metrics_from_arrays(similarities: List[float], distances: List[fl
         recalls.append(recall)
         f1_scores.append(f1_score)
 
-    auc = float(-np.trapz(precisions, recalls))
+    trapezoid = getattr(np, 'trapezoid', None) or np.trapz  # np.trapz removed in numpy 2.x
+    auc = float(-trapezoid(precisions, recalls))
     best_f1 = float(np.max(f1_scores)) if f1_scores else 0.0
     return {
         'method': method_label,
@@ -116,6 +117,9 @@ def init_descriptor_handler() -> Tuple[Any, Any]:
     if DESCRIPTOR_METHOD == 'sc':
         desc_handler = SC_Handler(downcell_size=0.5, lidar_height=2.0, sector_res=60, ring_res=20, max_length=80, verbose=False)
         return desc_handler, None
+    if DESCRIPTOR_METHOD == 'inlier':
+        from optkey_utils.InLiER_Handler import InLiER_Handler
+        return InLiER_Handler(config_path=config.get('inlier_config'), verbose=False), None
     raise ValueError('Descriptor method not supported')
 
 def init_dataset_handler() -> Any:
@@ -202,8 +206,12 @@ def query_map(desc_handler, curr_pose: np.ndarray, curr_descriptor: np.ndarray, 
     neighbours = sampler.keyframes._get_neighbours(curr_pose, n=N_CANDIDATES)
     if window_keyframes is not None:
         neighbours.extend(window_keyframes._get_neighbours(curr_pose, n=2))
-    descriptors = [k.descriptor for k in neighbours]
-    similarity, index = desc_handler.find_best_candidate(curr_descriptor, descriptors)
+    if DESCRIPTOR_METHOD == 'inlier':
+        ## Full InLiER matching (MINT -> BEAM -> verify) on the cached encodings
+        similarity, index = desc_handler.match_candidates(curr_index, [k.index for k in neighbours])
+    else:
+        descriptors = [k.descriptor for k in neighbours]
+        similarity, index = desc_handler.find_best_candidate(curr_descriptor, descriptors)
     best_candidate = neighbours[index]
     if np.abs(curr_index - best_candidate.index) > 10:
         ctx['similarities'].append(similarity)
@@ -271,6 +279,8 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
                 descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
             elif DESCRIPTOR_METHOD == 'sc':
                 descriptor = desc_handler.get_descriptor(scan)
+            elif DESCRIPTOR_METHOD == 'inlier':
+                descriptor = desc_handler.get_descriptor(scan, index=idx)
             else:
                 raise ValueError('Descriptor method not supported')
 
@@ -362,6 +372,8 @@ def run_sampling_methods(methods: List[str], live: bool = False) -> List[Dict[st
                 descriptor = desc_handler.get_descriptor(scan, feature_extracter).reshape(-1)
             elif DESCRIPTOR_METHOD == 'sc':
                 descriptor = desc_handler.get_descriptor(scan)
+            elif DESCRIPTOR_METHOD == 'inlier':
+                descriptor = desc_handler.get_descriptor(scan, index=i)
             else:
                 raise ValueError('Descriptor method not supported')
 

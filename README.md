@@ -41,7 +41,7 @@ Tested with Python 3.8 and 3.12, should work with other versions since there are
 
 - Python 3.8 or higher
 - At least one supported dataset: KITTI/SemanticKITTI, Apollo-SouthBay, MulRan, or NewerCollege (or adapt examples to your dataset)
-- At least one descriptor extraction method: OverlapTransformer or ScanContext (or implement a custom descriptor)
+- At least one descriptor extraction method: OverlapTransformer, ScanContext or InLiER (or implement a custom descriptor)
 
 For more information on how to adapt to your dataset or descriptor check [Custom Dataset](#custom-dataset) and [Custom Descriptor](#custom-descriptor)
 
@@ -105,8 +105,9 @@ Supported descriptors:
 
 - **[OverlapTransformer](https://github.com/haomo-ai/OverlapTransformer)** — Using [OT_Handler.py](optkey_utils/OT_Handler.py) (requires pretrained weights)
 - **[ScanContext](https://github.com/gisbi-kim/scancontext)** — Using [SC_Handler.py](optkey_utils/SC_Handler.py) (geometric, no training required)
+- **[InLiER](https://github.com/LTU-RAI/InLiER)** — Using [InLiER_Handler.py](optkey_utils/InLiER_Handler.py) (learning-free, requires Python ≥ 3.10). The compact MINT descriptor is used for keyframe sampling (MSA), while place recognition runs the full InLiER pipeline (MINT → BEAM → verify). **Note:** InLiER currently runs on single scans, not on accumulated submaps as in the original InLiER evaluation
 
-Install descriptor dependencies in `/optkey_utils/descriptors/` following the original repository instructions. Update your config file with the descriptor choice and weights path (if applicable).
+Install descriptor dependencies in `/optkey_utils/descriptors/` following the original repository instructions. For InLiER, install the package instead: `pip install -e /path/to/InLiER`, and optionally point `inlier_config` in your config file to an InLiER config yaml (InLiER defaults are used otherwise). Update your config file with the descriptor choice and weights path (if applicable).
 
 ### Custom Descriptor
 

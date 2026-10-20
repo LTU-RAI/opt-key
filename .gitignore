@@ -3,3 +3,4 @@
 *.pyc
 *.pcd
 *.npy
+*.venv/

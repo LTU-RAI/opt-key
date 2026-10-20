@@ -17,7 +17,9 @@ dataset:
   data_type: 'MapData'  
   ## 'MapData' or 'TestData' for ApolloSouth-Bay
 ## Choose descriptor -> str
-descriptor: 'ot' # 'ot' or 'sc'
+descriptor: 'ot' # 'ot', 'sc' or 'inlier'
+## Path to InLiER config yaml if using 'inlier' (optional, InLiER defaults if unset) -> str
+# inlier_config: /path/to/inlier.yaml
 ## Path to weights file if using learning-based descriptor (e.g. 'ot') -> str
 weights_path: '/home/niksta/python_projects/opt-key/optkey_utils/descriptors/OverlapTransformer/config/weights/pretrained_overlap_transformer.pth.tar'
 ## Path to save results
